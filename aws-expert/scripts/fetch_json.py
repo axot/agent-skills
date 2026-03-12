@@ -3,7 +3,7 @@ import gzip
 import json
 import urllib.request
 
-USER_AGENT = "aws-sa-expert/1.0"
+USER_AGENT = "aws-expert/1.0"
 
 
 def fetch_json(url: str, timeout: int = 15) -> dict:
