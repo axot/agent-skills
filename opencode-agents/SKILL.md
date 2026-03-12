@@ -1,6 +1,6 @@
 ---
 name: opencode-agents
-description: Delegate tasks to OpenCode agents (librarian, oracle, sisyphus, prometheus, atlas, explore, metis, momus) via the oh-my-opencode plugin. Use this skill whenever the user says "use librarian to", "use oracle to", "let librarian", "ask oracle to", "@librarian", "@oracle", or names any oh-my-opencode agent in the context of doing a task. Also triggers on Chinese equivalents: "用 librarian 做", "用 oracle 做", "让 librarian 帮". Do NOT use local tools when the user explicitly asks to route through an opencode agent.
+description: "Delegate tasks to OpenCode agents (librarian, oracle, sisyphus, prometheus, atlas, explore, metis, momus) via the oh-my-opencode plugin. Use this skill whenever the user says 'use librarian to', 'use oracle to', 'let librarian', 'ask oracle to', '@librarian', '@oracle', or names any oh-my-opencode agent in the context of doing a task. Also triggers on Chinese equivalents: '用 librarian 做', '用 oracle 做', '让 librarian 帮'. Do NOT use local tools when the user explicitly asks to route through an opencode agent."
 ---
 
 # OpenCode Agents Skill
