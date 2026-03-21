@@ -25,23 +25,27 @@ Delegate tasks to specialized OpenCode agents via the oh-my-opencode plugin syst
 Use the exec tool to run:
 
 ```bash
-opencode run "@<agent> <task prompt>"
+opencode run "<task prompt>"
 ```
+
+> ⚠️ **IMPORTANT**: Do NOT use `@<agent>` prefix in the prompt.
+> librarian and other named agents are **subagents** — when called via `@agent`, their output is consumed internally by oh-my-opencode and never returned to stdout.
+> Just pass the task directly; Sisyphus (the primary agent) will automatically delegate to the appropriate subagent (e.g., librarian for research) and return the result.
 
 **Examples:**
 
 ```bash
-# librarian: search for docs/research
-opencode run "@librarian search for best practices on LND channel management"
+# research / web search (librarian will be used internally)
+opencode run "search for best practices on LND channel management"
 
-# oracle: analysis and explanation
-opencode run "@oracle explain the difference between HTLC and PTLC in Lightning"
+# analysis and explanation (oracle will be used internally)
+opencode run "explain the difference between HTLC and PTLC in Lightning"
 
-# sisyphus: batch processing
-opencode run "@sisyphus process all JSON files in ./data and normalize the schema"
+# batch processing
+opencode run "process all JSON files in ./data and normalize the schema"
 
-# explore: codebase exploration
-opencode run "@explore find all usages of the payment module in this codebase"
+# codebase exploration
+opencode run "find all usages of the payment module in this codebase"
 ```
 
 ## Trigger Patterns
@@ -59,9 +63,9 @@ Activate this skill when the user says:
 
 1. **Identify the agent** from the user's request
 2. **Extract the task** — what should the agent do?
-3. **Run the command** via exec:
+3. **Run the command** via exec (NO `@agent` prefix):
    ```bash
-   opencode run "@<agent> <task>"
+   opencode run "<task>"
    ```
 4. **Return output** to the user
 5. If the agent isn't in the list above, check `~/.config/opencode/oh-my-opencode.json` for the full agent list
@@ -72,3 +76,4 @@ Activate this skill when the user says:
 - Each agent's model can be customized per-agent in that config
 - Tasks run synchronously; for long tasks, consider breaking them into smaller chunks
 - If opencode is not installed or not in PATH, report the error clearly
+- **Root cause of `@agent` issue**: librarian/oracle etc. are `subagent` mode only — `opencode run --agent librarian` fails with "not a primary agent". Calling `@librarian` in the prompt causes Sisyphus to silently dispatch it as a background subagent with no stdout return. Solution: always call without `@agent` prefix.
