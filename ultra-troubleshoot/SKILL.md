@@ -21,6 +21,8 @@ The core hierarchy: **eliminate root cause > bypass root cause > patch consequen
 
 This framework is thorough by design — it branches into multiple hypotheses at each level, exhaustively enumerates solutions, and validates against industry practice via GitHub search. This consumes a large number of tokens. Reserve it for problems where getting the wrong fix is expensive (recurring bugs, architectural decisions, cross-component failures). For straightforward bugs where you can see the fix after reading the code, just fix them directly.
 
+**Execute Steps 1–5 strictly in order. Complete each step fully before starting the next. Do not run steps in parallel.**
+
 ---
 
 ## Step 1: Interrogate the Root Cause
