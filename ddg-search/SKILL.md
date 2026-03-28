@@ -15,6 +15,11 @@ description: >
   Note: if the `agent-reach` skill is also available, prefer `ddg-search` for pure web
   search tasks; prefer `agent-reach` when the task involves social platforms (Twitter,
   Reddit, YouTube, WeChat, Bilibili, etc.) or platform-specific APIs.
+mcp:
+  ddg-search:
+    command: npx
+    args:
+      - "@oevortex/ddg_search@1.2.2"
 ---
 
 # DDG Search — Usage Guide
