@@ -1,0 +1,22 @@
+{
+  "skill_name": "ultra-troubleshoot",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "Streaming ASR system using Qwen3-ASR model on Apple Silicon + MLX.\n\nArchitecture: audio is split into fixed 2-second chunks. Each chunk is independently fed to the model for decoding (multi-turn KV cache, each chunk = one user turn).\n\nProblem 1: A 5-minute Japanese business conversation produces 106 occurrences of \"はい\" in the transcript, far more than actually spoken. Full-file (non-streaming) transcription does not have this issue.\n\nProblem 2: Speech that spans chunk boundaries gets transcribed twice. For example, \"体験版プレイしたから\" crosses two chunks and outputs \"プレイしたから。プレイしたから。\"\n\nReference implementation: /Users/zsshao/dev/mlx-qwen3-asr/mlx_qwen3_asr/streaming.py — read this file first before starting analysis.\n\nWhat is the best way to fix these issues?",
+      "expected_output": "Root cause: fixed-size chunking is speech-unaware — it sends silent segments to the model (causing hallucination) and splits mid-utterance speech (causing duplication). The recommended eliminate-category solution is to integrate a Voice Activity Detection (VAD) model like Silero VAD to make chunking speech-aware: only send chunks containing actual speech, and cut at speech boundaries rather than arbitrary 2-second intervals.",
+      "files": [],
+      "expectations": [
+        "Root cause identifies that fixed 2-second chunking is fundamentally speech-unaware",
+        "Problem 1 (hallucinated はい) is traced to the model receiving silent/near-silent chunks and generating filler",
+        "Problem 2 (cross-boundary duplication) is traced to speech being split mid-utterance by fixed boundaries",
+        "Both problems are recognized as sharing the same root cause (speech-unaware chunking)",
+        "VAD (Voice Activity Detection) is proposed as a solution — specifically Silero VAD or equivalent",
+        "The VAD solution is categorized as 'eliminate' (removes the root cause of speech-unaware chunking)",
+        "The existing energy-based endpointing in the reference code is identified as insufficient compared to a proper VAD model",
+        "GitHub or web search is performed to validate the VAD approach",
+        "The analysis references the streaming.py file and identifies relevant code (e.g., _select_decode_samples, energy endpointing)"
+      ]
+    }
+  ]
+}
