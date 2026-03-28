@@ -21,7 +21,7 @@ The core hierarchy: **eliminate root cause > bypass root cause > patch consequen
 
 This framework is thorough by design — it branches into multiple hypotheses at each level, exhaustively enumerates solutions, and validates against industry practice via GitHub search. This consumes a large number of tokens. Reserve it for problems where getting the wrong fix is expensive (recurring bugs, architectural decisions, cross-component failures). For straightforward bugs where you can see the fix after reading the code, just fix them directly.
 
-**Execute Steps 1–5 strictly in order. Complete each step fully before starting the next. Do not run steps in parallel.**
+**Execute Steps 1–5 strictly in order. Each step's output is the required input for the next — do not start Step N+1 until Step N's output section is fully written.**
 
 ---
 
@@ -165,6 +165,8 @@ Within the same category, rank by lower structural cost.
 ---
 
 ## Step 4: Validate Against Industry Practice
+
+**Requires**: The confirmed root cause from Step 1 and the top-ranked approach from Step 3. Construct all search queries below using those specific terms.
 
 For each problem's top-ranked approach, search for how mature open-source projects handle the same class of problem. This step is not optional — real-world validation catches blind spots that pure analysis misses.
 
