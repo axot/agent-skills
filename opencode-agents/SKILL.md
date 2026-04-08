@@ -1,13 +1,20 @@
 ---
 name: opencode-agents
-description: "Delegate tasks to oh-my-openagent agents (librarian, oracle, sisyphus, prometheus, atlas, explore, metis, momus) via the oh-my-opencode CLI. Use this skill whenever the user says 'use librarian to', 'use oracle to', 'let librarian', 'ask oracle to', '@librarian', '@oracle', or names any oh-my-openagent agent in the context of doing a task. Also triggers on Chinese equivalents: '用 librarian 做', '用 oracle 做', '让 librarian 帮'. Disambiguation: do NOT trigger for Oracle Database, Oracle Cloud, MongoDB Atlas, or general-purpose exploration verbs unrelated to oh-my-openagent."
+description: "Delegate tasks to oh-my-openagent agents (librarian, oracle, sisyphus, prometheus, atlas, explore, metis, momus) via the opencode CLI. Use this skill whenever the user says 'use librarian to', 'use oracle to', 'let librarian', 'ask oracle to', '@librarian', '@oracle', or names any oh-my-openagent agent in the context of doing a task. Also triggers on Chinese equivalents: '用 librarian 做', '用 oracle 做', '让 librarian 帮'. Disambiguation: do NOT trigger for Oracle Database, Oracle Cloud, MongoDB Atlas, or general-purpose exploration verbs unrelated to oh-my-openagent."
 ---
 
 # OpenCode Agents Skill
 
 Delegate tasks to specialized oh-my-openagent subagents via the `opencode` CLI.
 
-> **Project note**: The plugin was renamed from `oh-my-opencode` to `oh-my-openagent`.
+## Naming
+
+| Term | Meaning |
+|------|---------|
+| **oh-my-openagent** | The plugin package (npm: `oh-my-openagent`, formerly `oh-my-opencode`) |
+| **opencode** | The CLI binary used to invoke agents |
+| **oh-my-openagent.json** | Config file at `~/.config/opencode/oh-my-openagent.json` |
+
 > Canonical repo: https://github.com/code-yeongyu/oh-my-openagent
 
 ## Available Agents
@@ -23,7 +30,8 @@ Delegate tasks to specialized oh-my-openagent subagents via the `opencode` CLI.
 | **metis** | subagent | Strategy, trade-off analysis |
 | **momus** | subagent | Code review, quality assurance, gap/completeness checking |
 
-Primary agents (sisyphus, atlas) are top-level orchestrators. Subagents can be targeted directly via `--agent` but cannot be entry points for a `task()` call.
+**Primary agents** (sisyphus, atlas) are top-level orchestrators invoked directly.
+**Subagents** cannot be called directly via `--agent` — they are delegated to by Sisyphus internally via `call_omo_agent()`. To target a subagent, name it in the prompt text.
 
 ## How to Invoke
 
@@ -35,23 +43,24 @@ Use **single quotes** to avoid shell expansion of special characters (see Shell 
 
 ### Optional Flags
 
-| Flag | Description |
-|------|-------------|
-| `--agent <name>` | Route to a specific primary agent (sisyphus, atlas) |
-| `--dir <path>` | Set working directory (defaults to `process.cwd()`) |
-| `-m, --model <model>` | Override the model for this run |
+| Flag | Description | Example |
+|------|-------------|---------|
+| `--agent <name>` | Route to a specific **primary** agent only (sisyphus, atlas) | `opencode run --agent atlas 'analyze deps'` |
+| `--dir <path>` | Set working directory (defaults to `process.cwd()`) | `opencode run --dir /project 'review code'` |
+| `-m, --model <model>` | Override the model for this run | `opencode run -m gpt-4o 'summarize'` |
 
-### Routing
+### Routing to Subagents
 
-The message is delivered as plain text to Sisyphus via HTTP JSON — no `@mention` parsing occurs in the CLI path. Sisyphus may internally delegate to subagents via `task(subagent_type="librarian")` etc., but this is **probabilistic LLM behavior** — for simple tasks Sisyphus will often use its own tools directly.
+**Do NOT use `--agent` for subagents** — it will fail with "not a primary agent" or silently fall back to Sisyphus without proper delegation.
 
-**`--agent` only works for primary agents** (sisyphus, atlas). Passing a subagent name (e.g., `--agent librarian`) falls back to the default agent with a warning.
-
-**To route to a specific subagent**, include its name explicitly in the prompt text. Sisyphus reads this as an instruction to delegate:
+**Instead, name the subagent in the prompt text.** Sisyphus reads this as an instruction to delegate:
 ```bash
 opencode run 'Use librarian to find the official React docs on useEffect'
 opencode run 'Ask oracle to analyze the tradeoffs of this architecture'
+opencode run 'Use momus to review the auth module for security issues'
 ```
+
+The delegation is probabilistic LLM behavior — for simple tasks Sisyphus may use its own tools directly instead of delegating.
 
 ### Examples
 
@@ -64,18 +73,20 @@ opencode run --dir /path/to/project 'find all usages of the payment module'
 
 ## Execution Flow
 
+This section describes how an **AI agent** (e.g., OpenClaw, Claude Code) should use this skill when a user requests an opencode agent task.
+
 1. **Understand the task type** and whether the user named a specific agent.
 2. **Read local context if needed** — use local tools (file reads, directory listings) to gather context and embed it in the prompt.
-3. **Run the command** via the bash tool. If the user named a specific agent, include it explicitly in the prompt text — this signals Sisyphus to delegate:
+3. **Run the command** via exec. If the user named a specific subagent, include it explicitly in the prompt text:
    ```bash
    # User named an agent → embed it in the prompt
-   opencode run 'Use librarian to search today'"'"'s weather in Tokyo'
+   opencode run 'Use librarian to search today'\''s weather in Tokyo'
 
    # No agent named → let Sisyphus auto-route
-   opencode run 'search today'"'"'s weather in Tokyo'
+   opencode run 'search today'\''s weather in Tokyo'
    ```
 4. **Return the output** to the user.
-5. If the agent isn't in the list above, check `~/.config/opencode/oh-my-opencode.json` for the full configured agent list.
+5. If the agent isn't in the list above, check `~/.config/opencode/oh-my-openagent.json` for the full configured agent list.
 
 ## Output Handling
 
@@ -86,7 +97,7 @@ opencode run --dir /path/to/project 'find all usages of the payment module'
 
 ## Shell Safety
 
-`oh-my-opencode run` passes messages as JSON over HTTP — the message itself is never shell-executed. However, the shell on the caller side will expand special characters before the CLI receives them.
+`opencode run` passes messages as JSON over HTTP — the message itself is never shell-executed. However, the shell on the caller side will expand special characters before the CLI receives them.
 
 Always use **single quotes**:
 ```bash
@@ -97,21 +108,41 @@ opencode run 'analyze the $HOME variable usage'
 opencode run "analyze the $HOME variable usage"
 ```
 
-If the task contains single quotes, escape them:
+If the task contains single quotes, escape them with `'\''`:
 ```bash
 opencode run 'find all usages of the it'\''s pattern'
 ```
 
+## Known Issues
+
+### 1. Subagent results lost (background mode)
+
+**Symptom**: You call `opencode run 'Use oracle to review ...'`, oracle runs but no result comes back.
+
+**Root cause**: Sisyphus calls `call_omo_agent()` with `run_in_background=true` by default. Background subagent results are consumed internally and never returned to stdout.
+
+**Fix**: Add `prompt_append` to the sisyphus config in `~/.config/opencode/oh-my-openagent.json` to force synchronous mode:
+```json
+{
+  "agents": {
+    "sisyphus": {
+      "prompt_append": "CRITICAL RULE: When calling call_omo_agent with ANY subagent_type, you MUST set run_in_background=false (synchronous mode). NEVER use run_in_background=true — background mode causes results to be lost."
+    }
+  }
+}
+```
+
+### 2. `--agent` with subagent names
+
+**Symptom**: `opencode run --agent librarian '...'` fails or silently falls back.
+
+**Root cause**: `--agent` only accepts primary agents (sisyphus, atlas). Subagent names are rejected.
+
+**Fix**: Never use `--agent` for subagents. Name them in the prompt text instead.
+
 ## Notes
 
-- **Config**: `~/.config/opencode/oh-my-opencode.json` — agent models and settings
+- **Config**: `~/.config/opencode/oh-my-openagent.json` — agent models, prompt_append, and settings
 - **CWD**: inherited from the calling process; override with `--dir <path>`
-- **Recursion**: The `task()` tool has built-in recursion protection (max depth 3, cycle detection). Shell-invoked `oh-my-opencode run` starts an independent process tree with no cross-process guard — avoid chaining shell invocations inside tasks already started via `oh-my-opencode run`.
-- **If `oh-my-opencode` is not in PATH**: report the error clearly and suggest installing via `npm install -g oh-my-opencode`
-- **Root cause of `@agent` issue**: librarian/oracle etc. are `subagent` mode only — `opencode run --agent librarian` fails with "not a primary agent". Calling `@librarian` in the prompt causes Sisyphus to silently dispatch it as a background subagent with no stdout return. Solution: always call without `@agent` prefix.
-- **Background mode fix**: Even when naming agents in prompt text (e.g., "Use oracle to review..."), Sisyphus may call `call_omo_agent` with `run_in_background=true`, causing results to be lost. Fix: add `prompt_append` to the sisyphus config in `oh-my-openagent.json` forcing `run_in_background=false` for ALL subagent calls. Example:
-  ```json
-  "sisyphus": {
-    "prompt_append": "CRITICAL RULE: When calling call_omo_agent with ANY subagent_type, you MUST set run_in_background=false (synchronous mode). NEVER use run_in_background=true — background mode causes results to be lost."
-  }
-  ```
+- **Recursion**: The `call_omo_agent()` tool has built-in recursion protection (max depth 3, cycle detection). Shell-invoked `opencode run` starts an independent process tree with no cross-process guard — avoid chaining shell invocations inside tasks already started via `opencode run`.
+- **If `opencode` is not in PATH**: report the error clearly and suggest installing the oh-my-openagent plugin via `npm install -g oh-my-openagent`
