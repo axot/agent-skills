@@ -87,11 +87,16 @@ agent-browser starts with a clean browser (no cookies, no language preferences).
 - Spec table field names differ by language ("Item Weight" vs "商品の重量")
 - Review language detection is more reliable when the site matches the target language
 
+**Search target: 100+ products.** Broad coverage here means better filtering in Step 3 and less re-searching when criteria change. Aim for 100 unique products before proceeding. Fallback rules:
+- After 3 keyword variations with full pagination and still under 100 → proceed with what you have.
+- Below 30 products → inform the user the market is narrow and ask whether to broaden the category.
+
 **Search strategy:**
-- Start with 1-2 keyword combinations that capture the core need
-- If results are sparse, broaden keywords and search again
+- Use 2-3 keyword combinations that cover the core need from different angles (e.g., synonyms, category terms, brand keywords). Keep all variations within the same product category to avoid polluting the DB with irrelevant products. Insert results from each query into the DB before moving to the next.
+- For each query, paginate through at least 4-5 pages of results. Most platforms show 16-48 products per page, so 4-5 pages from 2-3 queries typically reaches 100+.
+- After each page insertion, check the running total via the insert command's `total_in_db` output (`UNIQUE(platform, product_id)` deduplicates, so this count reflects unique products even when queries overlap). Stop paginating once you reach 100+.
+- If results are sparse despite multiple queries, broaden keywords (e.g., drop adjectives, use the parent category) and search again.
 - Extract data from search result pages using JavaScript eval (fast, no need to open each product)
-- Scroll/paginate to capture more results — don't stop at page 1
 
 **Extraction pattern (Amazon example):**
 ```javascript
@@ -507,8 +512,8 @@ Why this matters: mathematical derivation introduces compounding errors (shippin
 When presenting results, briefly note how many total products were found, how many passed each filter, and how many survived to the final list. This helps the user understand the market and make informed decisions about relaxing criteria.
 
 Example:
-> Searched "ガーデンテーブルセット 3点セット" → 45 products cached.
-> After filtering (★≥4.2, ¥≤100,000, Japanese reviews): 12 remain.
+> Searched 3 keyword variations, paginated 4-5 pages each → 127 products cached.
+> After filtering (★≥4.2, ¥≤100,000, reviews≥10): 31 remain.
 > After weight verification (table≥12kg, chair≥7kg): 5 qualify.
 
 ### Platform-Specific Tips
