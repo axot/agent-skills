@@ -108,3 +108,10 @@ opencode run 'find all usages of the it'\''s pattern'
 - **CWD**: inherited from the calling process; override with `--dir <path>`
 - **Recursion**: The `task()` tool has built-in recursion protection (max depth 3, cycle detection). Shell-invoked `oh-my-opencode run` starts an independent process tree with no cross-process guard — avoid chaining shell invocations inside tasks already started via `oh-my-opencode run`.
 - **If `oh-my-opencode` is not in PATH**: report the error clearly and suggest installing via `npm install -g oh-my-opencode`
+- **Root cause of `@agent` issue**: librarian/oracle etc. are `subagent` mode only — `opencode run --agent librarian` fails with "not a primary agent". Calling `@librarian` in the prompt causes Sisyphus to silently dispatch it as a background subagent with no stdout return. Solution: always call without `@agent` prefix.
+- **Background mode fix**: Even when naming agents in prompt text (e.g., "Use oracle to review..."), Sisyphus may call `call_omo_agent` with `run_in_background=true`, causing results to be lost. Fix: add `prompt_append` to the sisyphus config in `oh-my-openagent.json` forcing `run_in_background=false` for ALL subagent calls. Example:
+  ```json
+  "sisyphus": {
+    "prompt_append": "CRITICAL RULE: When calling call_omo_agent with ANY subagent_type, you MUST set run_in_background=false (synchronous mode). NEVER use run_in_background=true — background mode causes results to be lost."
+  }
+  ```
