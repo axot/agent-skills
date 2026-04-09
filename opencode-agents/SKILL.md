@@ -88,6 +88,18 @@ This section describes how an **AI agent** (e.g., OpenClaw, Claude Code) should 
 4. **Return the output** to the user.
 5. If the agent isn't in the list above, check `~/.config/opencode/oh-my-openagent.json` for the full configured agent list.
 
+## Timeout
+
+opencode tasks involving subagent delegation and web search can take 2-5 minutes. Set exec timeout accordingly:
+
+- **Default recommendation: `timeout=600` (10 minutes)** for any opencode run
+- Use `yieldMs=10000` to background the process and poll for results
+- Too-short timeouts (e.g. 60-180s) will SIGKILL the process mid-task, losing all work
+
+```
+exec command="opencode run '...'" timeout=600 yieldMs=10000
+```
+
 ## Output Handling
 
 - **stdout** — agent's response (typically Markdown)
