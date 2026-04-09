@@ -126,7 +126,7 @@ opencode run 'find all usages of the it'\''s pattern'
 {
   "agents": {
     "sisyphus": {
-      "prompt_append": "CRITICAL RULE: When calling call_omo_agent with ANY subagent_type, you MUST set run_in_background=false (synchronous mode). NEVER use run_in_background=true — background mode causes results to be lost."
+      "prompt_append": "CRITICAL RULES:\n1. When calling call_omo_agent with ANY subagent_type, you MUST set run_in_background=false (synchronous mode). NEVER use run_in_background=true — background mode causes results to be lost.\n2. When the user explicitly names a subagent (e.g. 'Use oracle to...', 'Ask librarian to...'), you MUST delegate to that subagent via call_omo_agent. Do NOT handle it yourself or refuse."
     }
   }
 }
