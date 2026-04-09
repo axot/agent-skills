@@ -113,33 +113,6 @@ If the task contains single quotes, escape them with `'\''`:
 opencode run 'find all usages of the it'\''s pattern'
 ```
 
-## Known Issues
-
-### 1. Subagent results lost (background mode)
-
-**Symptom**: You call `opencode run 'Use oracle to review ...'`, oracle runs but no result comes back.
-
-**Root cause**: Sisyphus calls `call_omo_agent()` with `run_in_background=true` by default. Background subagent results are consumed internally and never returned to stdout.
-
-**Fix**: Add `prompt_append` to the sisyphus config in `~/.config/opencode/oh-my-openagent.json` to force synchronous mode:
-```json
-{
-  "agents": {
-    "sisyphus": {
-      "prompt_append": "CRITICAL RULES:\n1. When calling call_omo_agent with ANY subagent_type, you MUST set run_in_background=false (synchronous mode). NEVER use run_in_background=true — background mode causes results to be lost.\n2. When the user explicitly names a subagent (e.g. 'Use oracle to...', 'Ask librarian to...'), you MUST delegate to that subagent via call_omo_agent. Do NOT handle it yourself or refuse."
-    }
-  }
-}
-```
-
-### 2. `--agent` with subagent names
-
-**Symptom**: `opencode run --agent librarian '...'` fails or silently falls back.
-
-**Root cause**: `--agent` only accepts primary agents (sisyphus, atlas). Subagent names are rejected.
-
-**Fix**: Never use `--agent` for subagents. Name them in the prompt text instead.
-
 ## Notes
 
 - **Config**: `~/.config/opencode/oh-my-openagent.json` — agent models, prompt_append, and settings
