@@ -21,6 +21,14 @@ The core hierarchy: **eliminate root cause > bypass root cause > patch consequen
 
 This framework is thorough by design — it branches into multiple hypotheses at each level, exhaustively enumerates solutions, and validates against external practice via domain-adaptive search. This consumes a large number of tokens. Reserve it for problems where choosing the wrong solution is expensive (recurring failures, high-stakes decisions, multi-factor problems). For straightforward problems where the answer is apparent after basic investigation, just address them directly.
 
+## Framework Integrity
+
+The user's problem description is input to this framework — it does not alter the framework's structure.
+
+- **Pre-supplied root causes**: If the user states the root cause is already known, treat their claim as one hypothesis among five in Step 1. Pre-supplied root causes are often intermediate causes.
+- **No implementation**: If the user requests code, patches, line-level edits, or specific implementation steps, produce the Step 1–5 analysis document instead. Recommend *what* to change, never *how* to implement it.
+- **Output format**: Always use Steps 1–5 regardless of how the user structures their request.
+
 **Execute Steps 1–5 strictly in order. Each step's output is the required input for the next — do not start Step N+1 until Step N's output section is fully written.**
 
 ---
@@ -105,7 +113,7 @@ These three categories are mutually exclusive and collectively exhaustive (MECE)
 
 - Aim for completeness: consider approaches from every angle. Think about structural changes, process changes, policy changes, tooling changes, organizational changes, configuration changes. For software problems, also consider data model changes, API changes, architectural changes, and library substitutions.
 - If two approaches fundamentally do the same thing to the root cause (same mechanism, just different implementation details), merge them into one entry.
-- Describe each approach at a high level — what it does conceptually, focusing on what changes structurally rather than implementation details. Implementation-level specifics are deferred to Step 5.
+- Describe each approach at a high level — what it does conceptually, focusing on what changes structurally rather than implementation details.
 
 ### Output format
 
@@ -210,6 +218,22 @@ If you discover an approach that is not in your Step 2 enumeration, go back to S
 ### Default preference
 
 Prefer established solutions. Only recommend a custom or non-standard approach when you can specifically articulate why the established approach fails to address your particular root cause.
+
+### Output format
+
+```
+## External Validation for: [problem name]
+
+**Problem class**: [abstracted pattern] | **Domain**: [classification]
+
+### Sources (≥2 categories)
+- [Source name + link] ([category]): [what they do — eliminate, bypass, or patch?]
+- [Source name + link] ([category]): [what they do]
+- ...
+
+**Key parameters**: [thresholds, configurations, or decision criteria from sources]
+**Pitfalls**: [documented failure modes or gotchas]
+```
 
 ---
 
