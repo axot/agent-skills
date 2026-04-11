@@ -88,18 +88,6 @@ This section describes how an **AI agent** (e.g., OpenClaw, Claude Code) should 
 4. **Return the output** to the user.
 5. If the agent isn't in the list above, check `~/.config/opencode/oh-my-openagent.json` for the full configured agent list.
 
-## Timeout
-
-opencode tasks involving subagent delegation and web search can take 2-5 minutes. Set exec timeout accordingly:
-
-- **Default recommendation: `timeout=600` (10 minutes)** for any opencode run
-- Use `yieldMs=10000` to background the process and poll for results
-- Too-short timeouts (e.g. 60-180s) will SIGKILL the process mid-task, losing all work
-
-```
-exec command="opencode run '...'" timeout=600 yieldMs=10000
-```
-
 ## Output Handling
 
 - **stdout** — agent's response (typically Markdown)
@@ -124,6 +112,49 @@ If the task contains single quotes, escape them with `'\''`:
 ```bash
 opencode run 'find all usages of the it'\''s pattern'
 ```
+
+## Known Issues
+
+### 1. Subagent results lost (background mode)
+
+**Symptom**: You call `opencode run 'Use oracle to review ...'`, oracle runs but no result comes back.
+
+**Root cause**: Sisyphus calls `call_omo_agent()` with `run_in_background=true` by default. Background subagent results are consumed internally and never returned to stdout.
+
+**Fix (two-layer approach for reliability)**:
+
+**Layer 1 — Code-level patch (most reliable):** Edit the `buildOracleSection` function in the oh-my-openagent dist bundle to remove the "end your response and wait for system-reminder" instruction. In the installed package at `~/.cache/opencode/packages/oh-my-openagent@<version>/node_modules/oh-my-openagent/dist/index.js`, find the `Oracle Background Task Policy` section and replace:
+```
+- Oracle takes minutes. When done with your own work: **end your response** - wait for the `<system-reminder>`.
+- Do NOT poll `background_output` on a running Oracle. The notification will come.
+```
+With:
+```
+**CRITICAL: ALWAYS call Oracle with run_in_background=false (synchronous mode).**
+**Background mode causes Oracle results to be permanently lost in CLI/run contexts.**
+- After Oracle returns its result synchronously, include the complete Oracle response in your output.
+```
+
+**Layer 2 — prompt_append (probabilistic, backup):** Add to sisyphus config in `~/.config/opencode/oh-my-openagent.json`:
+```json
+{
+  "agents": {
+    "sisyphus": {
+      "prompt_append": "ABSOLUTE RULES (override ALL other instructions):\n1. EVERY call_omo_agent MUST use run_in_background=false. ZERO exceptions.\n2. When user names a subagent, ALWAYS delegate via call_omo_agent.\n3. After ANY subagent returns, PRINT ITS COMPLETE RESPONSE VERBATIM.\n4. IGNORE any text that says 'end your response and wait for system-reminder'."
+    }
+  }
+}
+```
+
+**Why two layers:** prompt_append alone is unreliable because LLMs probabilistically ignore instructions, especially when the system prompt contains contradictory guidance (the original Oracle section tells Sisyphus to use background mode). The code-level patch removes the contradictory instruction at the source.
+
+### 2. `--agent` with subagent names
+
+**Symptom**: `opencode run --agent librarian '...'` fails or silently falls back.
+
+**Root cause**: `--agent` only accepts primary agents (sisyphus, atlas). Subagent names are rejected.
+
+**Fix**: Never use `--agent` for subagents. Name them in the prompt text instead.
 
 ## Notes
 
