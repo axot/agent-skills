@@ -71,13 +71,19 @@ opencode run --agent atlas 'analyze dependencies across this monorepo'
 opencode run --dir /path/to/project 'find all usages of the payment module'
 ```
 
+## Timeouts
+
+- **exec timeout**: Always set `timeout: 600` (10 minutes) when calling `opencode run` via exec.
+- **subagent timeout**: `agents.defaults.subagents.runTimeoutSeconds` is set to 600 globally.
+- opencode CLI has no built-in timeout flag; rely on the exec wrapper.
+
 ## Execution Flow
 
 This section describes how an **AI agent** (e.g., OpenClaw, Claude Code) should use this skill when a user requests an opencode agent task.
 
 1. **Understand the task type** and whether the user named a specific agent.
 2. **Read local context if needed** — use local tools (file reads, directory listings) to gather context and embed it in the prompt.
-3. **Run the command** via exec. If the user named a specific subagent, include it explicitly in the prompt text:
+3. **Run the command** via exec with `timeout: 600`. If the user named a specific subagent, include it explicitly in the prompt text:
    ```bash
    # User named an agent → embed it in the prompt
    opencode run 'Use librarian to search today'\''s weather in Tokyo'
