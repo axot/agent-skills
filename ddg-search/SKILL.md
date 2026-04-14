@@ -19,7 +19,25 @@ description: >
 
 # DDG Search
 
-Server: `npx --yes @oevortex/ddg_search@1.2.2`, JSON-RPC over stdio.
+Server: `npx --yes @oevortex/ddg_search@1.2.2`
+
+## Fast MCP (preferred)
+
+Use `fastmcp list` and `fastmcp call` to interact with the server directly. Run `list` first to discover available tools and their input schemas dynamically, then `call` to invoke them.
+
+```bash
+_MCP="npx --yes @oevortex/ddg_search@1.2.2"
+
+# Discover tools and their input schemas
+uvx fastmcp list "$_MCP" --input-schema --json
+
+# Call a tool (construct target and arguments from the list output)
+uvx fastmcp call "$_MCP" --target TOOL_NAME --input-json '{"key":"value"}' --json
+```
+
+## Fallback (if `uvx` or `fastmcp` is not installed)
+
+Raw JSON-RPC over stdio. Do NOT install `fastmcp` or `uvx`; use this method instead.
 
 ```bash
 _MCP_INIT='{"jsonrpc":"2.0","method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"cli","version":"1.0.0"}},"id":1}\n{"jsonrpc":"2.0","method":"notifications/initialized"}\n'
