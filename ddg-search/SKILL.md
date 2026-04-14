@@ -19,18 +19,17 @@ description: >
 
 # DDG Search
 
-Executable: `npx --yes @oevortex/ddg_search@1.2.2` — MCP server, JSON-RPC over stdio.
-
-## Help — list tools & schemas
+Server: `npx --yes @oevortex/ddg_search@1.2.2`, JSON-RPC over stdio.
 
 ```bash
-printf '{"jsonrpc":"2.0","method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"cli","version":"1.0.0"}},"id":1}\n{"jsonrpc":"2.0","method":"notifications/initialized"}\n{"jsonrpc":"2.0","method":"tools/list","id":2}\n' | npx --yes @oevortex/ddg_search@1.2.2 2>/dev/null | grep -m1 '"id":2'
-```
+_MCP_INIT='{"jsonrpc":"2.0","method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"cli","version":"1.0.0"}},"id":1}\n{"jsonrpc":"2.0","method":"notifications/initialized"}\n'
+_MCP_SRV="npx --yes @oevortex/ddg_search@1.2.2"
 
-## Call a tool
+mcp() { printf "${_MCP_INIT}$1" | eval "$_MCP_SRV" 2>/dev/null | grep -m1 "\"id\":$2"; }
 
-Replace `TOOL_NAME` and `ARGS_JSON`:
+# Discover tools and schemas
+mcp '{"jsonrpc":"2.0","method":"tools/list","id":2}\n' 2
 
-```bash
-printf '{"jsonrpc":"2.0","method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"cli","version":"1.0.0"}},"id":1}\n{"jsonrpc":"2.0","method":"notifications/initialized"}\n{"jsonrpc":"2.0","method":"tools/call","params":{"name":"TOOL_NAME","arguments":ARGS_JSON},"id":3}\n' | npx --yes @oevortex/ddg_search@1.2.2 2>/dev/null | grep -m1 '"id":3'
+# Call a tool
+mcp '{"jsonrpc":"2.0","method":"tools/call","params":{"name":"TOOL_NAME","arguments":ARGS_JSON},"id":3}\n' 3
 ```
