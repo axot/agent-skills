@@ -127,7 +127,7 @@ After the user responds, apply their decisions and ensure all remaining amounts 
 **Save excluded items:**
 During all the cleaning above, collect every removed/modified row into a JSON file at `/tmp/fin_analysis/excluded.json`. Each entry should have:
 ```json
-{"date": "2026/02/25", "merchant": "給与 Amazon", "amount": "407820", "source": "bank_202602.csv", "reason": "收入"}
+{"date": "2025/01/25", "merchant": "給与 サンプル株式会社", "amount": "300000", "source": "bank_202501.csv", "reason": "収入"}
 ```
 Use these reason categories:
 - `收入` — income rows (入金, 給与, 利息 etc.)
