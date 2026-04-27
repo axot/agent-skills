@@ -474,10 +474,10 @@ Use a Markdown table with the most relevant columns for this specific product se
 After the table, add a **brief recommendation section** organized by use case:
 
 ```markdown
-| 重视什么 | 推荐 | 理由 |
+| Priority | Pick | Reason |
 |---|---|---|
-| コスパ | ①商品名 | 最安で基準クリア |
-| 品質 | ③商品名 | 最高評価+レビュー多数 |
+| Value | Product A | Cheapest that meets all criteria |
+| Quality | Product C | Highest rating + most reviews |
 ```
 
 ## Step 6: Iterate
