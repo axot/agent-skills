@@ -43,7 +43,12 @@ User-tuned on real renders (this is the "looks right" zone — start here):
 </defs></svg>
 ```
 
-`x/y/width/height` MUST be `0%/0%/100%/100%` — default `-10%` filter region offsets the feImage map and breaks edge alignment. `preserveAspectRatio="none"` stretches one square map onto any aspect ratio (slight distortion on extreme ratios is invisible in practice).
+Filter region and `feImage` must cover the SAME box or the map mis-aligns. Two working configs:
+
+- **Tight (original): `0% / 100%`** on both. Simple, but the displacement samples outside the element resolve to **transparent black** — under hover/scroll repaints this surfaces as dark smears at card edges (bug found in production: "黒い物が出てくる").
+- **Padded (recommended): `-20% / 140%`** on BOTH the `<filter>` and the `<feImage>`, plus a displacement map with a **20% neutral margin**: canvas = `SZ + 2*PAD` (PAD = SZ*0.2), fill all `rgb(128,128,128)` first, then draw the SDF map into the center SZ×SZ. Edge pixels still displace, but sampling now lands on real backdrop — transparent-black bleed is impossible.
+
+`preserveAspectRatio="none"` stretches one square map onto any aspect ratio (slight distortion on extreme ratios is invisible in practice).
 
 ### Displacement map (JS, runs once)
 
@@ -128,10 +133,12 @@ When redoing an existing doc/dashboard in Liquid Glass:
 4. Apply the typography system (weights, translucent ink, rounded numerals, etched labels).
 5. SVG diagrams: recolor fills to `rgba(255,255,255,.06–.12)` boxes + white strokes/text on dark, or `rgba(255,255,255,.55)` boxes + ink strokes on light; keep accent strokes. Replace emoji glyphs with proper vector icons (official brand/service icons where they exist — emoji in a polished glass UI reads as a prototype). **Audit every `<text>` against its containing box** (`getBBox()` width vs rect width) — overflowing labels are the #1 defect when porting existing diagrams; fix by widening the box, shortening copy, or splitting lines.
 6. Inner sub-cards: lighter treatment — `rgba(255,255,255,.08)` + 1px white border, no second lens (nested lens = visual mud + perf cost).
-7. Interactive flourishes (all compositor-only — transform/opacity, spawned elements removed on `animationend`). NOTE: `::before`/`::after` are already taken by dispersion + specular, so flourishes must be **child elements** at `z-index:1` (above the lens, below content at `z-index:2`):
-   - pointer-following specular: a `.glow` child div with a radial gradient at `var(--mx)/var(--my)`, updated by one rAF-throttled pointermove listener,
-   - ripple rings spawned along the pointer path,
+7. Interactive flourishes (all compositor-only). NOTE: `::before`/`::after` are already taken by dispersion + specular, so flourishes must be **child elements** at `z-index:1` (above the lens, below content at `z-index:2`). Perf-final implementations (measured to hold 60fps p99 <19ms on Retina):
+   - **Pointer glow = pre-painted disc moved by transform.** Do NOT re-paint a radial-gradient at `var(--mx)/var(--my)` per pointer event — that's a repaint per move and shows up as frame spikes. Instead: one fixed-size disc (e.g. 400×400, gradient painted once), positioned `left:-200px; top:-200px`, then `transform: translate(lxpx, lypx)` from a single rAF-throttled pointermove listener. Transform-only = zero repaints.
+   - **Ripple rings = POOLED nodes, not createElement.** Pre-create ~6 `.wave` spans per glass card; spawn = round-robin pick, reset `animation:none`, set left/top, force reflow (`void el.offsetWidth`), re-enable animation. No DOM insert/remove during interaction → no layer churn under the lens.
+   - **Pre-warm pools on `requestIdleCallback`**: build pools + run one invisible wave cycle + flash glow at opacity 0.001 — forces keyframe compilation and compositor layer allocation while idle, so the first real hover has no spike.
    - a periodic "sun sweep" — soft-light gradient band translating across hero panels every ~9s; cheap and consistently praised. Requires `overflow:hidden` on the panel.
+   - **Hover lift on lens cards: use box-shadow, not transform.** `:hover { translateY(-4px) }` moves the element relative to its backdrop → full lens re-filter every hover. A box-shadow swap reads as lift without touching the backdrop.
 
 ## Critical gotchas
 
@@ -143,7 +150,12 @@ When redoing an existing doc/dashboard in Liquid Glass:
 - **One filter per geometry family is fine** — same `#lens` reused by navbar, cards, dock. Only build separate maps for radically different shapes (circle vs long pill) if edge zone looks off.
 - **Don't put `filter:` on the element itself** — must be `backdrop-filter`, else you displace the content, not the backdrop.
 - **`isolation:isolate`** on glass element prevents blend-mode leakage of ::before/::after.
+- **`overflow:hidden` + `contain:layout style paint` on every glass card.** Without the clip, ripple rings scaling past the card edge become "moving content behind the sibling card below" and smear darkness through ITS lens. Containment also stops internal flourish churn from invalidating anything outside the card.
+- **Ghost/decoration layers and document flow.** If the ghost-stat layer is `position:absolute` (document-anchored), re-audit its coordinates after ANY change that moves section heights (`content-visibility`, added sections, font swaps) — a 150px outline numeral drifting under a frosted card renders as a giant gray smudge. Park ghosts at page edges (negative left/right), not under the card band, and keep strokes ≤0.06 alpha under 9–13px blur tiers.
+- **Don't make `body` a scroll container.** `body { overflow-x:hidden }` can silently turn body into the scroller (window.scrollY stuck at 0, breaks scroll-driven JS and some browsers' scroll behavior). Put `overflow-x:hidden` on `html` instead.
 - **Performance**: each glass element re-filters its backdrop on repaint; static background = cached result (see background section). The ">10 panels" caution applies to panels whose backdrop *changes* (animated or scrolling content behind them) — 20+ static-backdrop panels on one page is fine in practice. Flourish layers (`.glow`, ripples, sweeps) sit *in front of* the glass, so they don't trigger re-filtering.
+- **Tier the glass.** Full stack (lens + dispersion rim) on hero panels only (~8–10); list rows / footers get a `.lite` variant: plain `blur(9px) saturate(1.4)`, `::before` rim hidden, no ripples. Visually near-identical on small rows, cuts the heavy filters by half or more. Measured result on a 23-panel page: hover-storm went 47fps → 60fps.
+- **`content-visibility:auto` is a trap on glass pages.** Section re-activation during scroll re-runs the lens filters and shows up as scroll hitches; on a fixed-background page it also shifts measured section heights (breaking absolute-positioned decorations). Measure before keeping it — on the reference page removing it was the win.
 - **Hidden tab / headless screenshot**: rAF and IntersectionObserver freeze — if page uses entrance animations, add `if(document.hidden)` fallback to reveal content immediately. Headless preview renderers may also not repaint after `window.scrollTo()` — to screenshot below the fold, hide earlier sections or translate `.page` (NOT `body` — that moves the `position:fixed` background away and you get a blank shot).
 - **Small viewports**: the edge zone scales with element size — a near-fullscreen glass panel on mobile has huge soft edges and little clear center. Cap glass panel size or reduce edge exponent/scale under `@media (max-width:768px)`.
 - **Class naming**: demo.html uses `.glass`; the snippets here use `.lqg`. Same layer structure — pick one name per project.
