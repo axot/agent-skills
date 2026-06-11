@@ -7,6 +7,8 @@ description: Build Apple Liquid Glass (iOS 26 / macOS Tahoe) UI in pure HTML/CSS
 
 Recreates Apple's Liquid Glass material (WWDC 2025, iOS 26 / macOS Tahoe) in a browser. The signature look: a transparent slab whose **edges visibly bend the content behind it** (refraction), with a faint **rainbow fringe** at the rim (chromatic dispersion) and a bright **specular highlight**. Plain `backdrop-filter: blur()` gives frosted glass; the refraction is what reads as "liquid".
 
+The material is only half the look. The other half — learned from real redesign sessions — is the **background** (refraction is invisible without it) and the **typography** (heavy opaque type kills the glass feel faster than any wrong filter param). Those get their own sections.
+
 ## The stack (4 layers)
 
 A glass element = base element + SVG lens filter + 2 pseudo-elements:
@@ -88,11 +90,52 @@ fi.setAttributeNS('http://www.w3.org/1999/xlink','xlink:href',url);  // Safari n
 
 ## The background matters as much as the glass
 
-Refraction is invisible against flat color. The backdrop needs **high-frequency detail near glass edges**: large text, thin stripes, grid patterns, photos. Recipe that works: vivid multi-radial gradient base + 2–3 drifting blurred color blobs (`mix-blend-mode:screen`) + big bold text/outlined text/stripe+grid patterns scattered behind glass. If user's page has a plain background, add a detail layer or the effect dies.
+Refraction is invisible against flat color. The backdrop needs **detail near glass edges** — but the kind of detail matters:
+
+- **Best (field-tested): GlassPulse-style gradient mesh** — 4–6 large vivid radial color fields whose soft boundaries cross under glass edges, like Apple's iOS 26 wallpapers. The *color transitions* carry the refraction. No line patterns needed.
+- Ghost outline numbers/text (`-webkit-text-stroke`, fill transparent) at low opacity — doubles as decoration, refracts beautifully.
+- Photos also work.
+- **Avoid line patterns as the primary detail** (grids, stripes, contour lines, node webs). A user verdict from a real redesign: "too many lines in the background." Lines under glass read as noise, not refraction. A faint hairline grid is acceptable as a tertiary layer at ≤0.05 alpha; never the main event.
+- Keep the background layer **STATIC** (`position:fixed`, no animation). Anything moving behind glass forces every panel to re-filter per frame — the single biggest CPU cost in a glass-heavy page. Put motion *in front of* the glass instead (see flourishes in the redesign section).
+
+## Typography on glass (the part everyone gets wrong)
+
+Heavy opaque type on a delicate glass panel reads as "ink slapped on top" — it fights the material. Verdict from a real redesign session: the page only started feeling Apple-like after the type system changed, not the glass. Rules:
+
+- **Weights: 700 max.** Never 900 on glass. Use size for hierarchy, not blackness. Body 400, headings 700.
+- **Translucent ink, not opaque.** All text colors carry alpha so the backdrop breathes through: primary `rgba(22,30,48,.82–.92)`, secondary `.62`, tertiary `.42` (light theme; invert lightness for dark). Opaque pure `#000`/`#fff` looks pasted on — on dark glass use white *with alpha* (`rgba(255,255,255,.85–.92)`), which is what "white/near-white text" means anywhere in this skill.
+- **Etched (engraved) effect** on labels/headings: `text-shadow: 0 1px 0 rgba(255,255,255,.5)` (light theme) makes glyphs read as pressed into the glass.
+- **Numerals get a rounded face** — SF Rounded vibe. `M PLUS Rounded 1c` (700) is a good free stand-in for stats/prices/badges. Terminal monospace (JetBrains Mono etc.) for *all* numbers reads as a dev dashboard, not Apple; demote mono to an annotation voice only (eyebrow chips, timestamps, footnotes, tiny uppercase labels).
+- **Body = system font stack** (`-apple-system, "Hiragino Sans", …`) for the native-OS feel; airy metrics: `line-height 1.8–1.85`, `letter-spacing .02em`.
+- **Gradient-glass digits** for hero numbers: vertical 2-stop gradient via `background-clip:text` + `-webkit-text-fill-color:transparent`, plus `filter:drop-shadow(0 1px 0 rgba(255,255,255,.55))`. GOTCHA: a parent's `text-shadow` shows **through** clipped-transparent glyphs — always set `text-shadow:none` on the clipped element.
+
+## Light theme variant
+
+The defaults above are dark-tuned; light works and was user-preferred in one real project. Deltas:
+
+- Tint `rgba(255,255,255,.10)` (vs `.045` dark); shadows tinted with ink not black: `0 24px 60px -16px rgba(28,34,48,.30)`; inset rims brighter (`.95` top). The `.lqg` CSS block above shows dark values — apply these three substitutions for light.
+- Background: light gradient mesh (sky/teal/periwinkle/mint family, or warm pastels — ask the user; one user rejected pink-heavy as 太粉, cool palette won).
+- Ghost detail text: dark strokes `rgba(28,34,48,.10–.14)` instead of white.
+- Dispersion rim and specular layers work unchanged.
+
+## Composing a full page redesign
+
+When redoing an existing doc/dashboard in Liquid Glass:
+
+1. Keep semantic structure + copy; swap visual shell.
+2. Pick dark or light (sections above), build the gradient-mesh background + ghost-stat detail layer.
+3. Every card/panel/nav → `.lqg` with `border-radius` 16–28px (squircle feel).
+4. Apply the typography system (weights, translucent ink, rounded numerals, etched labels).
+5. SVG diagrams: recolor fills to `rgba(255,255,255,.06–.12)` boxes + white strokes/text on dark, or `rgba(255,255,255,.55)` boxes + ink strokes on light; keep accent strokes. Replace emoji glyphs with proper vector icons (official brand/service icons where they exist — emoji in a polished glass UI reads as a prototype). **Audit every `<text>` against its containing box** (`getBBox()` width vs rect width) — overflowing labels are the #1 defect when porting existing diagrams; fix by widening the box, shortening copy, or splitting lines.
+6. Inner sub-cards: lighter treatment — `rgba(255,255,255,.08)` + 1px white border, no second lens (nested lens = visual mud + perf cost).
+7. Interactive flourishes (all compositor-only — transform/opacity, spawned elements removed on `animationend`). NOTE: `::before`/`::after` are already taken by dispersion + specular, so flourishes must be **child elements** at `z-index:1` (above the lens, below content at `z-index:2`):
+   - pointer-following specular: a `.glow` child div with a radial gradient at `var(--mx)/var(--my)`, updated by one rAF-throttled pointermove listener,
+   - ripple rings spawned along the pointer path,
+   - a periodic "sun sweep" — soft-light gradient band translating across hero panels every ~9s; cheap and consistently praised. Requires `overflow:hidden` on the panel.
 
 ## Critical gotchas
 
-- **Chrome/Edge only for the lens.** Safari & Firefox ignore `backdrop-filter:url()` — feature-detect and warn or degrade:
+- **Chrome/Edge only for the lens.** Safari & Firefox ignore `backdrop-filter:url()` — feature-detect and degrade:
   ```js
   if(!CSS.supports('backdrop-filter','url(#x)')&&!CSS.supports('-webkit-backdrop-filter','url(#x)'))/* fallback */
   ```
@@ -100,21 +143,9 @@ Refraction is invisible against flat color. The backdrop needs **high-frequency 
 - **One filter per geometry family is fine** — same `#lens` reused by navbar, cards, dock. Only build separate maps for radically different shapes (circle vs long pill) if edge zone looks off.
 - **Don't put `filter:` on the element itself** — must be `backdrop-filter`, else you displace the content, not the backdrop.
 - **`isolation:isolate`** on glass element prevents blend-mode leakage of ::before/::after.
-- **Performance**: each glass element re-filters its backdrop on repaint. Keep animated things *in front of* glass, not behind it; static background = filter result cached. Avoid >10 large glass panels animating simultaneously.
-- **Hidden tab / headless screenshot**: rAF and IntersectionObserver freeze — if page uses entrance animations, add `if(document.hidden)` fallback to reveal content immediately.
+- **Performance**: each glass element re-filters its backdrop on repaint; static background = cached result (see background section). The ">10 panels" caution applies to panels whose backdrop *changes* (animated or scrolling content behind them) — 20+ static-backdrop panels on one page is fine in practice. Flourish layers (`.glow`, ripples, sweeps) sit *in front of* the glass, so they don't trigger re-filtering.
+- **Hidden tab / headless screenshot**: rAF and IntersectionObserver freeze — if page uses entrance animations, add `if(document.hidden)` fallback to reveal content immediately. Headless preview renderers may also not repaint after `window.scrollTo()` — to screenshot below the fold, hide earlier sections or translate `.page` (NOT `body` — that moves the `position:fixed` background away and you get a blank shot).
 - **Small viewports**: the edge zone scales with element size — a near-fullscreen glass panel on mobile has huge soft edges and little clear center. Cap glass panel size or reduce edge exponent/scale under `@media (max-width:768px)`.
 - **Class naming**: demo.html uses `.glass`; the snippets here use `.lqg`. Same layer structure — pick one name per project.
-
-## Composing a full page redesign
-
-When redoing an existing doc/dashboard in Liquid Glass:
-
-1. Keep semantic structure + copy; swap visual shell.
-2. Dark vivid gradient background + detail layer (big ghost text of key stats works double duty as decoration).
-3. Every card/panel/nav → `.lqg` with `border-radius` 16–28px (squircle feel).
-4. Text on glass → white/near-white with subtle `text-shadow`; accent colors keep hue but lift lightness (works on dark glass).
-5. SVG diagrams: recolor fills to `rgba(255,255,255,.06–.12)` boxes + white strokes/text; keep accent strokes.
-6. Inner sub-cards: lighter treatment — `rgba(255,255,255,.08)` + 1px white border, no second lens (nested lens = visual mud + perf cost).
-7. Interactive flourish (optional): drag-able glass icon, pointer-following specular via CSS vars.
 
 Full working reference with tuning sliders: `assets/demo.html` (open in Chrome).
