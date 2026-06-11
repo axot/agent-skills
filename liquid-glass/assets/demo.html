@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>OpenSuperMLX — Liquid Glass material test</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+html,body{height:100%;overflow:hidden;}
+body{font-family:"Inter",-apple-system,sans-serif;-webkit-font-smoothing:antialiased;background:#101018;}
+
+/* ================= rich background (needs detail for refraction to read) ================= */
+.bgwrap{position:fixed;inset:0;overflow:hidden;}
+.bg-grad{position:absolute;inset:-10%;background:
+  radial-gradient(600px 500px at 15% 20%,#ff9a62 0%,transparent 60%),
+  radial-gradient(700px 600px at 85% 15%,#5b8cff 0%,transparent 60%),
+  radial-gradient(800px 700px at 70% 90%,#ff5e8a 0%,transparent 55%),
+  radial-gradient(500px 500px at 25% 85%,#39d98a 0%,transparent 55%),
+  linear-gradient(160deg,#1a2440,#2c1b3d 60%,#3d1f2e);}
+.blob{position:absolute;border-radius:50%;filter:blur(60px);opacity:.55;mix-blend-mode:screen;}
+.blob.b1{width:480px;height:480px;background:#4f7dff;top:-8%;left:55%;animation:drift1 19s ease-in-out infinite alternate;}
+.blob.b2{width:420px;height:420px;background:#ff7a4f;top:50%;left:-6%;animation:drift2 23s ease-in-out infinite alternate;}
+.blob.b3{width:380px;height:380px;background:#ff4fa0;top:60%;left:70%;animation:drift1 27s ease-in-out infinite alternate-reverse;}
+@keyframes drift1{from{transform:translate(0,0) scale(1);}to{transform:translate(-120px,90px) scale(1.15);}}
+@keyframes drift2{from{transform:translate(0,0) scale(1.1);}to{transform:translate(140px,-70px) scale(.95);}}
+/* high-frequency detail layer — this is what the glass visibly bends */
+.bg-text{position:absolute;inset:0;display:flex;flex-direction:column;justify-content:center;gap:6px;padding:0 4vw;user-select:none;}
+.bg-text .row{white-space:nowrap;font-weight:900;letter-spacing:-.04em;color:rgba(255,255,255,.85);display:flex;gap:28px;align-items:baseline;}
+.bg-text .row.big{font-size:84px;}
+.bg-text .row.mid{font-size:42px;color:rgba(255,255,255,.55);}
+.bg-text .row.sm{font-size:20px;color:rgba(255,255,255,.4);font-weight:600;letter-spacing:.02em;}
+.bg-text .row .ghost{color:transparent;-webkit-text-stroke:1.5px rgba(255,255,255,.5);}
+.stripes{position:absolute;right:6vw;top:10vh;width:300px;height:300px;border-radius:50%;background:repeating-linear-gradient(45deg,rgba(255,255,255,.85) 0 10px,transparent 10px 26px);opacity:.5;}
+.gridpat{position:absolute;left:4vw;bottom:8vh;width:340px;height:220px;background:
+  repeating-linear-gradient(0deg,rgba(255,255,255,.5) 0 1.5px,transparent 1.5px 22px),
+  repeating-linear-gradient(90deg,rgba(255,255,255,.5) 0 1.5px,transparent 1.5px 22px);opacity:.45;border-radius:12px;}
+
+/* ================= liquid glass material ================= */
+.glass{
+  position:relative;
+  backdrop-filter:url(#lens) blur(var(--blur,4px)) saturate(var(--sat,1.55)) brightness(1.06);
+  -webkit-backdrop-filter:url(#lens) blur(var(--blur,4px)) saturate(var(--sat,1.55)) brightness(1.06);
+  background:rgba(255,255,255,.045);
+  box-shadow:
+    0 24px 60px -12px rgba(0,0,0,.45),
+    0 4px 14px rgba(0,0,0,.18),
+    inset 0 1.5px 1px rgba(255,255,255,.65),
+    inset 0 -1px 1px rgba(255,255,255,.25),
+    inset 1.5px 0 1px -.5px rgba(255,255,255,.35),
+    inset -1.5px 0 1px -.5px rgba(255,255,255,.35);
+  isolation:isolate;
+}
+/* chromatic dispersion ring — rainbow conic hugging the rim, blurred, screen-blended */
+.glass::before{
+  content:"";position:absolute;inset:0;border-radius:inherit;pointer-events:none;
+  padding:clamp(3px,2.5%,7px);
+  background:conic-gradient(from 210deg,
+    rgba(255,60,60,.0) 0deg, rgba(255,80,80,.55) 40deg, rgba(255,200,60,.5) 80deg,
+    rgba(80,255,140,.45) 130deg, rgba(70,180,255,.55) 190deg, rgba(160,90,255,.5) 250deg,
+    rgba(255,80,160,.5) 310deg, rgba(255,60,60,.0) 360deg);
+  -webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);
+  -webkit-mask-composite:xor;mask-composite:exclude;
+  filter:blur(4px);mix-blend-mode:screen;opacity:var(--disp,.5);
+}
+/* specular highlight — top-left sheen */
+.glass::after{
+  content:"";position:absolute;inset:0;border-radius:inherit;pointer-events:none;
+  background:
+    linear-gradient(135deg,rgba(255,255,255,.5),rgba(255,255,255,.12) 28%,transparent 46%),
+    radial-gradient(120% 60% at 50% 118%,rgba(255,255,255,.22),transparent 55%);
+  mix-blend-mode:screen;opacity:.85;
+}
+
+/* ================= hero icon ================= */
+.icon{
+  position:fixed;left:50%;top:46%;width:280px;height:280px;margin:-140px 0 0 -140px;
+  border-radius:64px;cursor:grab;touch-action:none;z-index:10;
+  display:grid;place-items:center;
+  transition:scale .25s cubic-bezier(.3,1.4,.5,1);
+}
+.icon:active{cursor:grabbing;scale:1.04;}
+.icon .logo{position:relative;z-index:2;width:128px;height:128px;color:#fff;filter:drop-shadow(0 4px 14px rgba(0,0,0,.3));}
+.badge{
+  position:absolute;top:-16px;right:-16px;min-width:76px;height:76px;border-radius:40px;z-index:3;
+  background:linear-gradient(180deg,#3d8bff,#1f6dff);display:grid;place-items:center;
+  color:#fff;font-size:40px;font-weight:800;letter-spacing:-.02em;padding:0 18px;
+  box-shadow:0 10px 26px -6px rgba(31,109,255,.6),inset 0 1.5px 1px rgba(255,255,255,.5);
+}
+
+/* ================= glass dock ================= */
+.dock{
+  position:fixed;left:50%;bottom:42px;transform:translateX(-50%);z-index:9;
+  border-radius:30px;padding:14px 18px;display:flex;gap:16px;align-items:center;
+}
+.dock .app{width:56px;height:56px;border-radius:16px;display:grid;place-items:center;font-size:30px;
+  background:linear-gradient(160deg,rgba(255,255,255,.16),rgba(255,255,255,.05));
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.35);transition:.18s;}
+.dock .app:hover{transform:translateY(-8px) scale(1.12);}
+
+/* ================= glass pill header ================= */
+.pill{
+  position:fixed;top:26px;left:50%;transform:translateX(-50%);z-index:9;
+  border-radius:100px;padding:11px 22px;display:flex;gap:14px;align-items:center;
+  color:#fff;font-size:13px;font-weight:600;letter-spacing:.02em;white-space:nowrap;
+}
+.pill .dot{width:8px;height:8px;border-radius:50%;background:#ff5e57;box-shadow:0 0 10px rgba(255,94,87,.9);}
+.pill .sep{width:1px;height:14px;background:rgba(255,255,255,.25);}
+.pill span.dim{color:rgba(255,255,255,.55);font-weight:500;}
+
+/* ================= controls ================= */
+.panel{
+  position:fixed;right:26px;bottom:42px;z-index:9;width:250px;border-radius:22px;padding:18px 18px 14px;color:#fff;
+}
+.panel h3{font-size:12px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;opacity:.75;margin-bottom:12px;}
+.ctl{margin-bottom:11px;}
+.ctl label{display:flex;justify-content:space-between;font-size:11.5px;font-weight:600;opacity:.85;margin-bottom:5px;font-variant-numeric:tabular-nums;}
+.ctl input[type=range]{width:100%;accent-color:#fff;height:18px;}
+.note{font-size:10.5px;line-height:1.5;opacity:.55;margin-top:8px;}
+.warn{position:fixed;left:50%;bottom:120px;transform:translateX(-50%);z-index:30;background:rgba(20,20,28,.9);color:#ffd28a;
+  font-size:12.5px;font-weight:600;padding:10px 18px;border-radius:100px;backdrop-filter:blur(10px);display:none;}
+</style></head><body>
+
+<!-- SVG lens filter — displacement map generated by JS canvas at runtime -->
+<svg width="0" height="0" style="position:absolute"><defs>
+  <filter id="lens" x="0%" y="0%" width="100%" height="100%" color-interpolation-filters="sRGB">
+    <feImage id="lensMap" result="map" preserveAspectRatio="none"/>
+    <feDisplacementMap in="SourceGraphic" in2="map" id="lensDisp" scale="-300" xChannelSelector="R" yChannelSelector="G"/>
+  </filter>
+  <g id="i-wave" fill="currentColor" stroke="none"><rect x="5.0" y="10.5" width="2.2" height="5" rx="1.1"/><rect x="8.3" y="8" width="2.2" height="10" rx="1.1"/><rect x="11.6" y="6.5" width="2.2" height="13" rx="1.1"/><rect x="14.9" y="9" width="2.2" height="8" rx="1.1"/><path d="M19.50 1.83C19.88 3.445 20.355 3.92 21.97 4.30C20.355 4.68 19.88 5.155 19.50 6.77C19.12 5.155 18.645 4.68 17.03 4.30C18.645 3.92 19.12 3.445 19.50 1.83z"/></g>
+</defs></svg>
+
+<div class="bgwrap">
+  <div class="bg-grad"></div>
+  <div class="blob b1"></div><div class="blob b2"></div><div class="blob b3"></div>
+  <div class="stripes"></div><div class="gridpat"></div>
+  <div class="bg-text">
+    <div class="row sm"><span>REAL-TIME · ON-DEVICE · MLX</span><span>16 kHz</span><span>≤ 700 MB RAM</span><span>zero cloud</span></div>
+    <div class="row big"><span>Speak.</span><span class="ghost">Transcribe.</span><span>Paste.</span></div>
+    <div class="row mid"><span>OpenSuperMLX</span><span class="ghost">语音转文字</span><span>Top 1%</span><span class="ghost">128,400 words</span></div>
+    <div class="row big"><span class="ghost">声波</span><span>→ 文本</span><span class="ghost">38h saved</span></div>
+    <div class="row sm"><span>⌥ SPACE ANYWHERE</span><span>STREAMING</span><span>QWEN3-ASR</span><span>APPLE SILICON</span><span>LOCAL ONLY</span></div>
+  </div>
+</div>
+
+<div class="pill glass"><span class="dot"></span>OpenSuperMLX<span class="sep"></span><span class="dim">Liquid Glass material test</span><span class="sep"></span><span class="dim">drag the icon</span></div>
+
+<div class="icon glass" id="icon">
+  <svg class="logo" viewBox="0 0 24 24"><use href="#i-wave"/></svg>
+  <div class="badge">68</div>
+</div>
+
+<div class="dock glass">
+  <div class="app">🎙️</div><div class="app">📊</div><div class="app">⚙️</div><div class="app">🔤</div><div class="app">🧠</div>
+</div>
+
+<div class="panel glass">
+  <h3>Material</h3>
+  <div class="ctl"><label>Refraction <span id="vScale">-300</span></label><input type="range" id="rScale" min="-300" max="300" value="-300"></div>
+  <div class="ctl"><label>Edge zone <span id="vEdge">5</span></label><input type="range" id="rEdge" min="1" max="14" value="5"></div>
+  <div class="ctl"><label>Blur <span id="vBlur">4px</span></label><input type="range" id="rBlur" min="0" max="14" value="4"></div>
+  <div class="ctl"><label>Dispersion <span id="vDisp">0.50</span></label><input type="range" id="rDisp" min="0" max="100" value="50"></div>
+  <div class="note">backdrop-filter → SVG feDisplacementMap，位移贴图由 canvas 实时生成。边缘折射真实弯曲背后内容。</div>
+</div>
+
+<div class="warn" id="warn">⚠️ 此浏览器不支持 backdrop-filter + SVG filter（Safari 退化为纯毛玻璃）— 用 Chrome 看完整折射</div>
+
+<script>
+// ===== displacement map: neutral gray center, edges push outward (squircle superellipse falloff) =====
+const SZ=255;
+function buildMap(edgePow){
+  const c=document.createElement('canvas');c.width=c.height=SZ;
+  const ctx=c.getContext('2d');const im=ctx.createImageData(SZ,SZ);const d=im.data;
+  for(let y=0;y<SZ;y++)for(let x=0;x<SZ;x++){
+    const i=(y*SZ+x)*4;
+    const nx=(x/(SZ-1))*2-1, ny=(y/(SZ-1))*2-1;
+    // superellipse n=4 → squircle-shaped lens zone
+    const dist=Math.pow(Math.pow(Math.abs(nx),4)+Math.pow(Math.abs(ny),4),0.25);
+    const t=Math.min(dist,1);
+    const edge=Math.pow(t,edgePow);            // 0 center → 1 rim
+    d[i]  =128+nx*edge*127;                    // R: x displacement
+    d[i+1]=128+ny*edge*127;                    // G: y displacement
+    d[i+2]=128;d[i+3]=255;
+  }
+  ctx.putImageData(im,0,0);
+  return c.toDataURL();
+}
+const feImg=document.getElementById('lensMap'),feDisp=document.getElementById('lensDisp');
+function setMap(p){const url=buildMap(p);feImg.setAttribute('href',url);feImg.setAttributeNS('http://www.w3.org/1999/xlink','xlink:href',url);}
+setMap(5);
+
+// ===== controls =====
+const $=id=>document.getElementById(id);
+$('rScale').oninput=e=>{feDisp.setAttribute('scale',e.target.value);$('vScale').textContent=e.target.value;};
+$('rEdge').oninput=e=>{setMap(+e.target.value);$('vEdge').textContent=e.target.value;};
+$('rBlur').oninput=e=>{document.querySelectorAll('.glass').forEach(g=>g.style.setProperty('--blur',e.target.value+'px'));$('vBlur').textContent=e.target.value+'px';};
+$('rDisp').oninput=e=>{const v=(+e.target.value/100).toFixed(2);document.querySelectorAll('.glass').forEach(g=>g.style.setProperty('--disp',v));$('vDisp').textContent=v;};
+
+// ===== drag the hero icon =====
+const icon=$('icon');let drag=null;
+icon.addEventListener('pointerdown',e=>{icon.setPointerCapture(e.pointerId);
+  const r=icon.getBoundingClientRect();drag={dx:e.clientX-r.left-r.width/2,dy:e.clientY-r.top-r.height/2};});
+icon.addEventListener('pointermove',e=>{if(!drag)return;
+  icon.style.left=(e.clientX-drag.dx)+'px';icon.style.top=(e.clientY-drag.dy)+'px';});
+icon.addEventListener('pointerup',()=>drag=null);
+
+// ===== capability check: Safari can't do url() in backdrop-filter =====
+if(!CSS.supports('backdrop-filter','url(#lens)')&&!CSS.supports('-webkit-backdrop-filter','url(#lens)'))
+  $('warn').style.display='block';
+</script>
+</body></html>

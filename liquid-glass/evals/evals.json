@@ -1,0 +1,23 @@
+{
+  "skill_name": "liquid-glass",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "Build me a single-page personal landing page (name, tagline, 3 project cards, contact button) in Apple Liquid Glass style. Single HTML file, dark colorful background, the glass cards should actually refract the background like the iOS 26 icons do.",
+      "expected_output": "Single HTML file with SVG feDisplacementMap lens filter, canvas-generated displacement map, .lqg-style glass cards with dispersion rim + specular, vivid detailed background, works in Chrome",
+      "files": []
+    },
+    {
+      "id": 2,
+      "prompt": "这是一个数据看板页面，帮我整页改成苹果液态玻璃风格，卡片要有真实折射感，不要只是毛玻璃模糊。",
+      "expected_output": "Existing page restructured: dark vivid background with detail layer, all cards converted to refractive glass (backdrop-filter url + displacement map), white text, original content preserved",
+      "files": ["dashboard-sample.html"]
+    },
+    {
+      "id": 3,
+      "prompt": "Make a macOS-style glass dock and a pill navbar component with liquid glass material — needs the rainbow edge dispersion and it must degrade gracefully in Safari.",
+      "expected_output": "Dock + navbar using shared lens filter, conic dispersion rim, CSS.supports feature detection with frosted-glass fallback for Safari",
+      "files": []
+    }
+  ]
+}
