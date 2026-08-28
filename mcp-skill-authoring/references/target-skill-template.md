@@ -1,7 +1,8 @@
 # Target Skill Template
 
-Use this as a starting structure for a portable, token-efficient MCP-backed
-skill. Replace every placeholder and remove sections that do not apply.
+Use this as a starting structure for a compact, portable MCP-backed skill.
+Replace every placeholder, keep the direct commands in `SKILL.md`, and remove
+sections that do not apply.
 
 ````markdown
 ---
@@ -24,9 +25,12 @@ Authentication: <environment or supported credential store>
 Inspector package: `@modelcontextprotocol/inspector@latest`
 Node.js requirement: <current requirement from the Inspector package engine metadata>
 
-Place exactly one of the following target arrays in the bundled invocation
-script. The examples below assume the selected array and Inspector commands run
-in the same shell process.
+Define the Inspector command and exactly one of the following target arrays in
+`SKILL.md`. Run the setup and the selected operation in the same shell process.
+
+```bash
+MCP_INSPECTOR=(npx -y @modelcontextprotocol/inspector@latest --cli)
+```
 
 For local stdio without server flags:
 
@@ -74,7 +78,7 @@ cleanup_mcp_list_file() {
 }
 trap cleanup_mcp_list_file EXIT
 
-npx -y @modelcontextprotocol/inspector@latest --cli \
+"${MCP_INSPECTOR[@]}" \
   "${MCP_INSPECTOR_TARGET[@]}" \
   --method tools/list --format json \
   >"$MCP_LIST_FILE"
@@ -98,7 +102,8 @@ process.stdout.write(JSON.stringify(matches[0]));
 ' "$MCP_LIST_FILE" "<tool-name>"
 ```
 
-Move this filter into a bundled script when it is used repeatedly.
+Keep this filter in `SKILL.md`. Repeated use is not a reason to create a
+wrapper.
 
 ## Call
 
@@ -124,7 +129,7 @@ if [ "$MCP_ARGS_STATUS" -ne 0 ]; then
   exit "$MCP_ARGS_STATUS"
 fi
 
-npx -y @modelcontextprotocol/inspector@latest --cli \
+"${MCP_INSPECTOR[@]}" \
   "${MCP_INSPECTOR_TARGET[@]}" \
   --method tools/call \
   --tool-name "<tool-name>" \
@@ -163,18 +168,20 @@ npx -y @modelcontextprotocol/inspector@latest --cli \
 
 ## Template Notes
 
+- Default to one `SKILL.md` with direct Inspector commands. Do not add a
+  wrapper, reference, config, or test file merely to reduce repetition.
 - Prefer a fixed server command over a user-controlled command string.
-- Use shell arrays in a bundled script when the stdio command has multiple
-  arguments. Do not store the command as one string and execute it with `eval`.
+- Use shell arrays when the stdio command has multiple arguments. Do not store
+  the command as one string and execute it with `eval`.
 - Use `--tool-args-json` for nested or typed arguments.
 - Use the Inspector `latest` tag and verify its current Node.js engine
   requirement during authoring.
 - Remove every placeholder and retain exactly one transport-specific target
   array before delivery.
-- Put complex stdio commands in an Inspector session config with discrete
-  `command` and `args` values; do not depend on separator parsing.
-- Add offline tests for shell metacharacters, Inspector exit-code preservation,
-  zero and duplicate schema matches, JSON-object validation, and session-config
-  argument separation.
-- Keep client-specific native MCP instructions in an optional reference, not in
-  the portable execution path.
+- Add an Inspector session config only when stdio server flags would collide
+  with Inspector options. Keep `command` and `args` as discrete values.
+- Add a script or test file only when the generated target contains separate
+  executable logic that cannot remain compact and safe inline.
+- Add a reference only when server-specific guidance is too long for the main
+  skill. Keep client-specific native MCP instructions out of the portable
+  execution path.

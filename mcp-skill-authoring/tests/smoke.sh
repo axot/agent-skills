@@ -140,8 +140,23 @@ if ! grep -Fq '@modelcontextprotocol/inspector@latest' "$SKILL_FILE"; then
 fi
 
 LATEST_TEMPLATE_LINES="$(grep -Fc '@modelcontextprotocol/inspector@latest' "$TEMPLATE_FILE")"
-if [ "$LATEST_TEMPLATE_LINES" -ne 3 ]; then
-  echo "target template must use the Inspector latest tag in metadata and both calls" >&2
+if [ "$LATEST_TEMPLATE_LINES" -ne 2 ]; then
+  echo "target template must use the Inspector latest tag in metadata and setup" >&2
+  exit 1
+fi
+
+if ! grep -Fq 'Default to one compact `SKILL.md`' "$SKILL_FILE"; then
+  echo "authoring instructions do not require the compact single-file default" >&2
+  exit 1
+fi
+
+if grep -Fq 'Use a bundled script for filtering when' "$SKILL_FILE"; then
+  echo "authoring instructions still promote a wrapper for repeated use" >&2
+  exit 1
+fi
+
+if ! grep -Fq 'Repeated use is not a reason to create a' "$TEMPLATE_FILE"; then
+  echo "target template does not preserve the no-wrapper default" >&2
   exit 1
 fi
 

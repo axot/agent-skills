@@ -38,6 +38,9 @@ The generated skill must:
 8. Pass runtime or user-controlled JSON as data through a validated file or an
    argument array. Never splice it into shell source or a quoted command
    template.
+9. Default to one compact `SKILL.md` containing direct Inspector commands. Do
+   not create wrapper scripts or supporting files merely to avoid repeating a
+   short command.
 
 Do not duplicate the server's complete tool catalog or schemas in the skill.
 Do not implement raw JSON-RPC, parse protocol traffic with `grep`, construct
@@ -79,24 +82,29 @@ authoring to verify the current CLI contract and Node.js engine requirement.
 Invoke `@modelcontextprotocol/inspector@latest` in the generated skill rather
 than freezing the package at the version observed during authoring.
 
-### 3. Design progressive disclosure
+### 3. Keep the generated skill compact
 
-Keep `SKILL.md` focused on triggering, workflow, safety, and common failure
-recovery. Put long server-specific material in `references/` and reusable
-invocation logic in `scripts/`.
+Keep the normal deliverable to one `SKILL.md`. Define the Inspector command and
+one server target as shell arrays, then invoke Inspector directly from the
+skill's command blocks. Expected call frequency is not a reason to create a
+wrapper.
+
+Add a separate file only when the target requires it. A stdio server whose
+flags collide with Inspector options may require a session config. Genuinely
+long server-specific guidance may require a reference. Add a script only when
+the user requests one or when the required operation cannot be expressed
+safely and clearly as a direct Inspector command. State the reason when adding
+any supporting file.
 
 When the tool schema is already verified and stable, call the tool directly.
 When it is unknown or drift-prone, run `tools/list` and immediately select only
 the required tool definition. Do not show the model the complete tool list.
 
-Use a bundled script for filtering when the target skill will be called often.
-The script should accept a tool name as data, parse Inspector's JSON output with
-a JSON parser, print only the matching tool, and require exactly one match. It
-must fail on both zero and duplicate matches and must not interpolate the tool
-name into executable shell text.
-
-Keep the canonical filter implementation in the target template or a bundled
-script instead of duplicating it in `SKILL.md`.
+Keep the canonical filter block from the target template directly in
+`SKILL.md`. It should accept a tool name as data, parse Inspector JSON with a
+JSON parser, print only the matching tool, and fail on both zero and duplicate
+matches. Do not interpolate the tool name into executable shell text, and do
+not duplicate the filter block within the same skill.
 
 Do not pipe Inspector directly into the filter. Capture Inspector output, check
 and preserve its exit status, and only then parse the successful JSON. A shell
@@ -152,16 +160,16 @@ Before delivering the generated skill:
 8. Inspect executable scripts and command blocks for actual FastMCP invocation,
    raw JSON-RPC construction, or `eval` execution. Do not flag explanatory prose
    that names a prohibited pattern.
-9. Run offline smoke tests that prove apostrophes, newlines, dollar signs,
-   backticks, and command-substitution text remain data; Inspector exit codes 3
-   and 4 survive discovery; zero and duplicate tool matches fail; and complex
-   stdio command arguments remain separate values in an Inspector session
-   config.
+9. Validate the direct command blocks with apostrophes, newlines, dollar signs,
+   backticks, and command-substitution text as data. Verify Inspector exit codes
+   3 and 4 survive discovery and zero or duplicate tool matches fail. If the
+   target requires a session config, also verify complex stdio arguments remain
+   separate values.
 10. Inspect the final files and report anything that could not be executed.
 
 Run `bash tests/smoke.sh` to verify the reusable patterns in this skill before
-changing its template. Generated target skills should carry equivalent tests
-for any bundled wrapper they add.
+changing its template. Do not add a test artifact to a generated target skill
+unless that target includes separate executable logic that needs it.
 
 ## Template
 
