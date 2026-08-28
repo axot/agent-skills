@@ -1,0 +1,4 @@
+interface:
+  display_name: "Critical Thinking Discussion"
+  short_description: "Socratic issue-led thinking coach"
+  default_prompt: "Use $critical-thinking-discussion to guide my thinking with compact framework-step prompts, keep a live pyramid snapshot as my facts develop, synthesize provisional key messages, and end with a grounded summary without solving the issue for me."
