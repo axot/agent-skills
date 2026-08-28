@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+SKILL_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd -P)"
+SKILL_FILE="$SKILL_DIR/SKILL.md"
+TEMPLATE_FILE="$SKILL_DIR/references/target-skill-template.md"
 TEST_DIR="$(mktemp -d)"
 cleanup_test_dir() {
   node -e 'require("node:fs").rmSync(process.argv[1], {recursive: true, force: true})' "$TEST_DIR"
@@ -125,5 +128,21 @@ const server = config.mcpServers?.target;
 if (server?.command !== "/absolute/path/to/server") process.exit(1);
 if (JSON.stringify(server.args) !== JSON.stringify(["--config", "/path/to/server.conf", "--verbose"])) process.exit(1);
 ' "$SESSION_CONFIG"
+
+if grep -Eq '@modelcontextprotocol/inspector@[0-9]' "$SKILL_FILE" "$TEMPLATE_FILE"; then
+  echo "Inspector must use latest instead of a numeric version" >&2
+  exit 1
+fi
+
+if ! grep -Fq '@modelcontextprotocol/inspector@latest' "$SKILL_FILE"; then
+  echo "authoring instructions do not require the Inspector latest tag" >&2
+  exit 1
+fi
+
+LATEST_TEMPLATE_LINES="$(grep -Fc '@modelcontextprotocol/inspector@latest' "$TEMPLATE_FILE")"
+if [ "$LATEST_TEMPLATE_LINES" -ne 3 ]; then
+  echo "target template must use the Inspector latest tag in metadata and both calls" >&2
+  exit 1
+fi
 
 echo "smoke tests passed"

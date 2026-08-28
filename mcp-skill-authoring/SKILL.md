@@ -53,8 +53,8 @@ Determine:
 
 - The local stdio command or remote HTTP URL.
 - Required environment variables and authentication flow.
-- The current minimum supported Node.js version from the official Inspector
-  documentation.
+- The Node.js engine requirement of the current Inspector `latest` release,
+  verified from the package registry and official documentation.
 - Which calls are read-only, mutating, destructive, or externally visible.
 - Expected startup and tool-call latency.
 
@@ -71,13 +71,13 @@ the generated skill.
 For a stdio server with flag arguments, use a checked-in Inspector session
 config with separate `command` and `args` fields. Do not rely on the bare `--`
 separator for a durable skill: its observed CLI parsing can differ from the
-documentation and between pinned versions. Direct targets are acceptable only
-for simple commands whose arguments cannot collide with Inspector options.
+documentation and between Inspector releases. Direct targets are acceptable
+only for simple commands whose arguments cannot collide with Inspector options.
 
 Query the package registry and official Inspector documentation during
-authoring, then pin the verified Inspector version in the generated skill.
-Never execute an unpinned latest package from a durable skill, and never invent
-a version.
+authoring to verify the current CLI contract and Node.js engine requirement.
+Invoke `@modelcontextprotocol/inspector@latest` in the generated skill rather
+than freezing the package at the version observed during authoring.
 
 ### 3. Design progressive disclosure
 
@@ -139,9 +139,9 @@ Before delivering the generated skill:
 1. Confirm its directory name matches the frontmatter `name`.
 2. Confirm `name` and `description` are present and the description states both
    positive triggers and important exclusions.
-3. Confirm the generated skill contains a verified pinned Inspector version,
-   the current Node.js requirement, one transport branch, and no unresolved
-   placeholders.
+3. Confirm the generated skill invokes `@modelcontextprotocol/inspector@latest`,
+   states the current Node.js engine requirement, retains one transport branch,
+   and contains no unresolved placeholders.
 4. Run an Inspector `initialize` or `tools/list` probe against the configured
    server.
 5. Verify exact tool discovery returns one schema, not the complete catalog.

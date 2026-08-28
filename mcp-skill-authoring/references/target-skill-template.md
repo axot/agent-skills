@@ -9,7 +9,7 @@ name: <skill-name>
 description: >-
   <Capability and concrete trigger phrases. State exclusions that prevent
   collisions with adjacent skills.>
-compatibility: Requires <verified current Node.js requirement> and access to <server>.
+compatibility: Requires the Node.js version supported by the current MCP Inspector release and access to <server>.
 ---
 
 # <Skill title>
@@ -21,8 +21,8 @@ skill is selected. Do not require native MCP registration.
 
 Transport: <stdio or HTTP>
 Authentication: <environment or supported credential store>
-Inspector package: `@modelcontextprotocol/inspector@<verified-version>`
-Node.js requirement: <verified current requirement>
+Inspector package: `@modelcontextprotocol/inspector@latest`
+Node.js requirement: <current requirement from the Inspector package engine metadata>
 
 Place exactly one of the following target arrays in the bundled invocation
 script. The examples below assume the selected array and Inspector commands run
@@ -59,7 +59,7 @@ MCP_INSPECTOR_TARGET=(--server-url "https://mcp.example.com/mcp" --transport htt
 
 Use an Inspector session config instead of a bare `--` separator whenever the
 stdio server has flag arguments. This keeps Inspector and server options
-unambiguous across pinned Inspector versions.
+unambiguous across Inspector releases.
 
 ## Discover One Tool
 
@@ -74,7 +74,7 @@ cleanup_mcp_list_file() {
 }
 trap cleanup_mcp_list_file EXIT
 
-npx -y @modelcontextprotocol/inspector@<verified-version> --cli \
+npx -y @modelcontextprotocol/inspector@latest --cli \
   "${MCP_INSPECTOR_TARGET[@]}" \
   --method tools/list --format json \
   >"$MCP_LIST_FILE"
@@ -124,7 +124,7 @@ if [ "$MCP_ARGS_STATUS" -ne 0 ]; then
   exit "$MCP_ARGS_STATUS"
 fi
 
-npx -y @modelcontextprotocol/inspector@<verified-version> --cli \
+npx -y @modelcontextprotocol/inspector@latest --cli \
   "${MCP_INSPECTOR_TARGET[@]}" \
   --method tools/call \
   --tool-name "<tool-name>" \
@@ -167,7 +167,8 @@ npx -y @modelcontextprotocol/inspector@<verified-version> --cli \
 - Use shell arrays in a bundled script when the stdio command has multiple
   arguments. Do not store the command as one string and execute it with `eval`.
 - Use `--tool-args-json` for nested or typed arguments.
-- Verify and pin the Inspector version and Node.js requirement during authoring.
+- Use the Inspector `latest` tag and verify its current Node.js engine
+  requirement during authoring.
 - Remove every placeholder and retain exactly one transport-specific target
   array before delivery.
 - Put complex stdio commands in an Inspector session config with discrete
