@@ -41,6 +41,13 @@ CREATE TABLE IF NOT EXISTS product_pages (
     FOREIGN KEY (platform, product_id) REFERENCES products(platform, product_id)
 );
 
+CREATE TABLE IF NOT EXISTS product_queries (
+    platform TEXT NOT NULL,
+    product_id TEXT NOT NULL,
+    search_query TEXT NOT NULL,
+    PRIMARY KEY (platform, product_id, search_query)
+);
+
 CREATE TABLE IF NOT EXISTS _meta (
     key TEXT PRIMARY KEY,
     value TEXT
@@ -106,6 +113,26 @@ def _output(data):
     print(json.dumps(data, ensure_ascii=False, default=str))
 
 
+def _load_payload(raw_json):
+    payload = json.loads(raw_json)
+    # agent-browser eval prints a returned string JSON-encoded, so a saved
+    # extractor result is a JSON string that holds the actual JSON.
+    if isinstance(payload, str):
+        payload = json.loads(payload)
+    return payload
+
+
+def _exit_blocked(payload):
+    _output(
+        {
+            "error": "blocked",
+            "detail": "the page was a CAPTCHA or robot check; nothing was stored",
+            "url": payload.get("url", ""),
+        }
+    )
+    sys.exit(2)
+
+
 def _read_meta(db_path):
     try:
         conn = sqlite3.connect(db_path)
@@ -158,23 +185,32 @@ def cmd_insert(args):
         _output({"error": "must provide --json or --json-file"})
         return
 
-    conn = _get_db(args.db)
-    conn.executescript(SCHEMA)
-
     raw_json = args.json
     if args.json_file:
         with open(args.json_file, "r", encoding="utf-8") as f:
             raw_json = f.read()
 
-    products = json.loads(raw_json)
-    if isinstance(products, dict):
-        products = [products]
+    payload = _load_payload(raw_json)
+    if isinstance(payload, dict) and isinstance(payload.get("products"), list):
+        if payload.get("blocked"):
+            _exit_blocked(payload)
+        products = payload["products"]
+    elif isinstance(payload, dict):
+        products = [payload]
+    else:
+        products = payload
+
+    conn = _get_db(args.db)
+    conn.executescript(SCHEMA)
 
     received = len(products)
     inserted = 0
     skipped = 0
     skipped_ids = []
     for p in products:
+        platform = p.get("platform", args.platform or "unknown")
+        product_id = p.get("product_id", "")
+        query = p.get("search_query") or ""
         try:
             cur = conn.execute(
                 """INSERT OR IGNORE INTO products
@@ -182,8 +218,8 @@ def cmd_insert(args):
                  rating, review_count, search_rank, url, search_query)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                 (
-                    p.get("platform", args.platform or "unknown"),
-                    p.get("product_id", ""),
+                    platform,
+                    product_id,
                     p.get("name", ""),
                     p.get("price"),
                     p.get("price_raw", ""),
@@ -192,22 +228,28 @@ def cmd_insert(args):
                     p.get("review_count"),
                     p.get("search_rank"),
                     p.get("url", ""),
-                    p.get("search_query", ""),
+                    query,
                 ),
             )
-            if cur.rowcount > 0:
-                inserted += 1
-            else:
-                skipped += 1
-                skipped_ids.append(p.get("product_id", "?"))
+            if query:
+                conn.execute(
+                    "INSERT OR IGNORE INTO product_queries VALUES (?, ?, ?)",
+                    (platform, product_id, query),
+                )
         except sqlite3.IntegrityError:
+            skipped += 1
+            skipped_ids.append(p.get("product_id", "?"))
+            continue
+        if cur.rowcount > 0:
+            inserted += 1
+        else:
             skipped += 1
             skipped_ids.append(p.get("product_id", "?"))
 
     conn.commit()
     _touch_accessed(conn)
 
-    new_terms = {p.get("search_query", "") for p in products} - {""}
+    new_terms = {p.get("search_query") or "" for p in products} - {""}
     if new_terms:
         try:
             existing = json.loads(
@@ -239,6 +281,7 @@ def cmd_insert(args):
 
 def cmd_query(args):
     conn = _get_db(args.db)
+    conn.executescript(SCHEMA)
 
     conditions = []
     params = []
@@ -255,6 +298,15 @@ def cmd_query(args):
     if args.platform:
         conditions.append("platform = ?")
         params.append(args.platform)
+    if args.search_query:
+        # products.search_query holds only the first query that found a product;
+        # product_queries records all of them (it is empty in DBs made before it existed).
+        placeholders = ", ".join("?" * len(args.search_query))
+        conditions.append(f"""(search_query IN ({placeholders}) OR EXISTS (
+            SELECT 1 FROM product_queries q
+            WHERE q.platform = p.platform AND q.product_id = p.product_id
+            AND q.search_query IN ({placeholders})))""")
+        params.extend(args.search_query * 2)
     if args.search:
         conditions.append("""(p.name LIKE ? OR EXISTS (
             SELECT 1 FROM product_pages pp
@@ -312,6 +364,16 @@ def cmd_query(args):
 
 
 def cmd_update_detail(args):
+    record = None
+    if args.extract_file:
+        with open(args.extract_file, "r", encoding="utf-8") as f:
+            record = _load_payload(f.read())
+        if not isinstance(record, dict):
+            _output({"error": "--extract-file must hold one product-page record"})
+            return
+        if record.get("blocked"):
+            _exit_blocked(record)
+
     conn = _get_db(args.db)
     platform = args.platform or "%"
 
@@ -343,6 +405,8 @@ def cmd_update_detail(args):
     if args.page_text_file:
         with open(args.page_text_file, "r", encoding="utf-8") as f:
             page_text = f.read()
+    if record is not None:
+        page_text = record.pop("body", None) or page_text
 
     if page_text:
         conn.execute(
@@ -353,7 +417,10 @@ def cmd_update_detail(args):
     conn.commit()
     changes = conn.total_changes
     conn.close()
-    _output({"updated": changes, "product_id": args.product_id})
+    result = {"updated": changes, "product_id": args.product_id}
+    if record is not None:
+        result["record"] = record
+    _output(result)
 
 
 def cmd_stats(args):
@@ -458,6 +525,8 @@ def cmd_discover(args):
         if args.query:
             query_lower = args.query.lower()
             for sq in search_queries:
+                if not isinstance(sq, str):
+                    continue
                 if query_lower in sq.lower() or sq.lower() in query_lower:
                     score += 10
             desc = meta.get("description", "").lower()
@@ -526,6 +595,7 @@ def main():
     p_query.add_argument("--max-price", type=float, default=None)
     p_query.add_argument("--min-reviews", type=int, default=None)
     p_query.add_argument("--platform", default=None)
+    p_query.add_argument("--search-query", action="append", default=None)
     p_query.add_argument("--search", default=None)
     p_query.add_argument("--verified-only", action="store_true")
     p_query.add_argument("--spec-filter", nargs="*", default=[])
@@ -538,6 +608,7 @@ def main():
     p_detail.add_argument("--platform", default=None)
     p_detail.add_argument("--page-text", default=None)
     p_detail.add_argument("--page-text-file", default=None)
+    p_detail.add_argument("--extract-file", default=None)
     p_detail.add_argument("--specs", default=None)
     p_detail.add_argument("--verified", action="store_true")
 
