@@ -10,7 +10,7 @@ A user asking, in casual language, for "撒在地里防止野草长出来的东�
 | **B. Weed-barrier sheet/gravel** | 防草シート / 瓦チップ / 砂利 / 防犯砂利 | A woven fabric you lay down, or decorative gravel spread on top | No — it's a **layer**, not a sprinkle-in product |
 | **C. Granular herbicide (the "药"/medicine)** | 除草剤 粒剤 / 顆粒 / まくだけ | Chemical granules you sprinkle into/onto soil; the active ingredient suppresses weeds | **Yes** — this is the one that means "撒药到土里" |
 
-**Disambiguation cue that resolved this session:** the user said "我是要药撒到地里边…不是防草层那种" (I want the *medicine* sprinkled into the ground, not the barrier-layer kind). The word 药/medicine + "into the soil" + "not a layer" → **Class C, 除草剤 粒剤**. If a user says "硬化/固まる/像水泥" → Class A. If "铺/シート/砂利" → Class B.
+**Disambiguation cue (from a real request):** the user said "我是要药撒到地里边…不是防草层那种" (I want the *medicine* sprinkled into the ground, not the barrier-layer kind). The word 药/medicine + "into the soil" + "not a layer" → **Class C, 除草剤 粒剤**. If a user says "硬化/固まる/像水泥" → Class A. If "铺/シート/砂利" → Class B.
 
 ## Within Class C (granular herbicide) — sub-classify again before recommending
 

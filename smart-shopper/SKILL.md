@@ -1,6 +1,6 @@
 ---
 name: smart-shopper
-description: Product research and comparison shopping assistant. Use this skill whenever the user wants to find, compare, or filter products on any online shopping platform (Amazon, Rakuten, Yahoo Shopping, IKEA, Costco, Taobao, JD, etc.). Triggers include "find me a product", "search for X on Amazon", "help me buy Y", "compare products", "I need a [product]", "search [platform] for", "shop for", "looking for something to buy", any mention of shopping criteria like price range, star ratings, product specifications, or when the user names a product category and an online store. Also triggers when the user changes filtering criteria mid-search (e.g., "relax the rating to 3.9", "what if we increase the budget"). This skill caches all search results in a local SQLite database so criteria changes can be answered instantly without re-searching.
+description: Product research and comparison shopping assistant. Use this skill whenever the user wants to find, compare, or filter products on any online shopping platform (Amazon, Rakuten, Yahoo Shopping, IKEA, Costco, Taobao, JD, etc.). Triggers include "find me a product", "search for X on Amazon", "help me buy Y", "compare products", "I need a [product]", "search [platform] for", "shop for", "looking for something to buy", any mention of shopping criteria like price range, star ratings, product specifications, or when the user names a product category and an online store. Also triggers when the user changes filtering criteria mid-search (e.g., "relax the rating to 3.9", "what if we increase the budget"). This skill caches all search results in a local SQLite database so criteria changes can be answered instantly without re-searching. Load it before the first shopping search, not after ad-hoc browsing. Also for owner-review research (which models owners recommend) and multi-product setups like desk cable management.
 dependencies: agent-browser
 ---
 
@@ -8,7 +8,7 @@ dependencies: agent-browser
 
 ## Prerequisites
 
-This skill requires `agent-browser` for all web interaction. Before starting any search:
+This skill requires `agent-browser` for searching and visiting pages (Amazon.co.jp product pages can also be fetched without a browser, see Step 4). Before starting any search:
 
 1. Check if the `agent-browser` skill is available in your skill list
 2. If available, load it: use the `skill` tool to load `agent-browser`
@@ -50,30 +50,20 @@ User request
 [6] User changes criteria? → Re-query cached DB, only re-search if data insufficient
 ```
 
-## Load This Skill FIRST (workflow pitfall)
+## Owner-review research mode ("which model do owners recommend?")
 
-The moment a user asks to find/search/compare/buy a product on any platform, **load this skill before touching the browser** — do not fire off one or two ad-hoc searches first and load the skill afterwards. A user who has this skill installed expects it to drive every shopping search (caching, sub-type classification, JA selector correctness). Jumping in raw means: wrong star parsing (the `5つ星のうち` trap), no SQLite cache so criteria changes force a re-search, and skipped sub-type classification. Real correction seen: user asked "你不是有一个用来搜索的 skill 可以用的吗" after two manual searches. The skill is the entry point, not a fallback.
-
-## Evidence-first owner-review research
-
-When the user asks which products owners recommend, prioritize actual owner reviews on specialist retailers and owner forums; manufacturer positioning is not evidence of owner satisfaction. For vehicle tyres, read exact-model owner comments, identify the vehicle and tyre variant (summer/all-season, run-flat/non-run-flat), and report both recurring praise and complaints. Do not treat a site’s mixed expert/user score as a user-only rating, or a product-wide review count as a vehicle-specific count. New releases without owner evidence remain unproven rather than inheriting predecessor reputation. Separate improved comfort from changing run-flat construction and old-to-new replacement effects from the tyre model’s effect.
-
-For broad international model-recommendation requests, establish coverage across major relevant brands before narrowing: show the useful candidate landscape grouped by use case and evidence strength, then a shortlist. Do not stop after verifying only the familiar models initially suggested; a shortlist without broader discovery can conceal better alternatives. Popular-fitment lists are not satisfaction rankings.
-
-When the user states explicit filter thresholds (e.g. rating > 4.2, reviews > 20), every product passing them is in scope. Do not silently narrow by your own unstated criteria (brand fame, review-count tiers); the omitted items can include the category's #1 seller, and the user will catch it. When more than 20 pass, follow the Step 3 rule: ask the user to tighten the filter or investigate all; never pick the subset yourself.
-
-For this review-research mode, skip irrelevant platform/budget/rating questions and the 100-product shopping-list target. Search across relevant sources, cache the focused evidence, and link directly to reviews. Do not require price or store-star metrics when the task is model reputation rather than a purchase listing. Vehicle-specific evidence outranks generic rankings, but verify the review body: vehicle landing pages can contain misclassified vehicles and inconsistent metadata. Never copy owner pressure advice as a recommendation.
+When the user asks which models owners recommend or how a model holds up, the deliverable is evidence from owner reviews, not a filtered shopping list. Skip the Step 1 questionnaire, the 100-product target and the price/store-rating requirements. Prioritize actual owner reviews on specialist retailers and owner forums over manufacturer positioning, cache the focused evidence, and link directly to the reviews. Read `references/owner-review-research.md` first: it covers establishing brand coverage before narrowing, matching evidence to the exact variant, and vehicle tyres.
 
 ## Solution-scheme mode ("find better products / a better setup for this problem")
 
 When the user wants products that implement a solution (organize a desk, wire a room, mount a device) rather than one product with criteria, the deliverable is a set of components that work together, not a ranked list of one item.
 
-1. Skip the Step 1 questionnaire and the 100-product target. Take constraints from the conversation so far (e.g. "must stay easy to adjust", "don't replace my existing cables"). Re-asking for them, or proposing what the user already rejected, is a regression.
+1. Skip the Step 1 questionnaire, the 100-product target and the Step 3 "more than 20 candidates" question: this mode opens a sample on purpose. Take constraints from the conversation so far (e.g. "must stay easy to adjust", "don't replace my existing cables"). Re-asking for them, or proposing what the user already rejected, is a regression.
 2. Split the solution into its component layers, e.g. where the hub goes, under-desk storage, mounting the power strip, quick-access clips. Run 1–2 queries per layer, 1 page each, into one DB. Add a device-specific query for the user's exact equipment (`<model> ハブ スタンド`). Purpose-built accessories often beat generic ones, and a generic search won't surface them.
-3. Filter at ≥4.2★ and ≥100 reviews per layer. Open the top 1–3 per layer, at most ~6 pages per call, and read the **fit constraints** from the bullets and spec table: board-thickness range, required clamp depth, port list and limits (bus-power, shared bandwidth), maximum cable diameter, width. Grep reviews for recurring defects such as port instability or stripped screws.
+3. Filter each layer at ≥4.2★ and ≥100 reviews (`query --search-query "<the layer's query>"`, repeated for each of its queries). Open the top 1–3 per layer and read the **fit constraints** from the bullets and spec table: board-thickness range, required clamp depth, port list and limits (bus-power, shared bandwidth), maximum cable diameter, width. Grep reviews for recurring defects such as port instability or stripped screws. In the answer, say for each layer how many products passed the filter and how many you opened.
 4. Present the products layer by layer, each with a bare URL. Then give 2 bundles (premium / budget) with a total price. End with the measurements the user must take before ordering (desk thickness, gap to the wall, clamp depth). Label any fit requirement you could not read from a page as inference.
 
-For desk and cable organization, the user's principles (don't make swapping cables the method; tier cables by how often they are touched instead of hiding everything under the desk) and the per-layer fit constraints are in `references/desk-cable-management.md`.
+For desk and cable organization, the advice principles (don't make swapping cables the method; tier cables by how often they are touched instead of hiding everything under the desk) and the per-layer fit constraints are in `references/desk-cable-management.md`.
 
 ## Step 1: Clarify Requirements
 
@@ -123,10 +113,10 @@ agent-browser starts with a clean browser (no cookies, no language preferences).
 - If results are sparse despite multiple queries, broaden keywords (e.g., drop adjectives, use the parent category) and search again.
 - Extract data from search result pages using JavaScript eval (fast, no need to open each product)
 
-**Extraction pattern (Amazon example):**
+**Extraction pattern:** on Amazon.co.jp, use the ready-made extractors below. On other platforms, write a script of the same shape: it runs in the page through `agent-browser eval` and returns `JSON.stringify(products)`, where each product carries `product_id`, `name`, `rating`, `price`, `review_count`, `url` and `search_query`:
 ```javascript
 // Run via agent-browser eval to extract search results
-Array.from(document.querySelectorAll('[data-asin]'))
+JSON.stringify(Array.from(document.querySelectorAll('[data-asin]'))
   .filter(el => el.dataset.asin.length > 3)
   .map(el => ({
     product_id: el.dataset.asin,
@@ -134,43 +124,40 @@ Array.from(document.querySelectorAll('[data-asin]'))
     rating: /* extract star rating */,
     price: /* extract price */,
     review_count: /* extract review count */,
-    url: 'https://www.amazon.co.jp/dp/' + el.dataset.asin
-  }))
+    url: 'https://www.amazon.co.jp/dp/' + el.dataset.asin,
+    search_query: new URLSearchParams(location.search).get('k') || ''  // Amazon's query parameter; other sites name it differently
+  })))
 ```
 
-Adapt the selectors for each platform. The goal: get product_id, name, rating, price, review_count, and URL from the search results page itself.
+Adapt the selectors for each platform. The goal: get product_id, name, rating, price, review_count, and URL from the search results page itself. `search_query` is what `discover` matches later sessions against, and `insert` only takes it from each product, so always include it.
 
-**CRITICAL: Write extracted data to a JSON file, not to LLM context.** Large product lists (50+ items) will be truncated or corrupted if passed through the LLM. Use this pattern:
+**CRITICAL: Write extracted data to a JSON file, not to LLM context.** Large product lists (50+ items) will be truncated or corrupted if passed through the LLM. `agent-browser eval` runs inside the page, where `require` and `fs` don't exist, so the script can't write the file itself: redirect its output into a fresh directory instead of reading it, and insert from that file in the same command (shell variables such as `$OUT` don't survive between separate commands):
 
-```javascript
-// In agent-browser eval: extract products and write JSON file directly
-const products = Array.from(document.querySelectorAll('[data-asin]'))
-  .filter(el => el.dataset.asin.length > 3)
-  .map(el => ({ /* extraction logic */ }));
-// Write to temp file
-require('fs').writeFileSync('/tmp/products_page1.json', JSON.stringify(products));
-products.length; // return count only
-```
-
-Then insert via file:
 ```bash
-python3 product_db.py insert --db <DB_PATH> --json-file /tmp/products_page1.json --platform amazon.co.jp
+OUT=$(mktemp -d)
+agent-browser --session shop eval --stdin < extract.js > "$OUT/page1.json"
+python3 product_db.py insert --db <DB_PATH> --json-file "$OUT/page1.json" --platform amazon.co.jp
 ```
 
-The insert command outputs `received`, `inserted`, `skipped` counts. If `received` is much less than what you extracted, the JSON file was corrupted. If `skipped` is high, products were duplicates from overlapping searches (expected).
+The insert command outputs `received`, `inserted`, `skipped` counts. If `received` is much less than what you extracted, the JSON file was corrupted. If `skipped` is high, products were duplicates from overlapping searches (expected). `insert` reads the saved eval output as-is (agent-browser prints a returned string JSON-encoded; insert decodes it).
 
-**Ready-made Amazon extractors:** `scripts/amazon_search_extract.js` (search results: JA rating parse, review-count fallback chain, sponsored flag) and `scripts/amazon_product_page_extract.js` (title, rating, bullets, spec table + detail bullets, full body). Run them with `agent-browser --session <s> eval --stdin < <script> > raw.json`. The saved output is a JSON-encoded string, so decode twice (`json.load`, then `json.loads` if the result is a `str`) before writing the list for `insert --json-file`. Loop pages with `&page=N` in a small shell script that writes one JSON per page, so a long crawl never routes product data through the LLM.
+**Ready-made Amazon.co.jp extractors** (prefer these to writing your own):
+- `scripts/amazon_search_extract.js` — one search results page. Returns `{blocked, url, page, query, products}`; each product has `product_id`, `name`, `rating` (parsed after `のうち`), `review_count` (multi-fallback chain), `price`, `price_raw`, `url`, `search_query` (the `k` parameter) and `search_rank` (position across pages, empty for sponsored rows).
+- `scripts/amazon_product_page_extract.js` — one product page. Returns `title`, `rating`, `review_count`, `price`, `bullets`, `specs` (spec tables plus detail bullets), `desc`, image URLs (`main_image`, `gallery_images`, `aplus_images`) and the page text (`body`).
 
-#### Execution-environment note: agent-browser eval vs. Hermes browser tools
+Loop the pages in one shell command so product data never passes through the LLM. `insert` exits with code 2 when a page was a CAPTCHA or robot check, which ends the loop:
 
-The `require('fs').writeFileSync(...)` pattern above ONLY works inside agent-browser's Node-context eval. If you are driving the browser through **Hermes built-in browser tools** (`browser_navigate` / `browser_console` / `browser_snapshot`) instead of the agent-browser CLI, `browser_console` runs in the **page's JS context** — there is no `require`, no `fs`, no Node. Calling `require('fs')` there throws `ReferenceError: require is not defined` (and on `about:blank` the result is silently empty).
+```bash
+S=/path/to/smart-shopper/scripts; OUT=$(mktemp -d)
+Q=$(python3 -c 'import sys, urllib.parse; print(urllib.parse.quote_plus(sys.argv[1]))' "<query>")
+for n in 1 2 3 4 5; do
+  agent-browser --session shop open "https://www.amazon.co.jp/s?k=$Q&page=$n&language=ja_JP" || break
+  agent-browser --session shop eval --stdin < "$S/amazon_search_extract.js" > "$OUT/p$n.json" || break
+  python3 "$S/product_db.py" insert --db <DB_PATH> --json-file "$OUT/p$n.json" --platform amazon.co.jp || break
+done
+```
 
-In a Hermes-tools session, do this instead:
-1. In `browser_console`, build the array and `return JSON.stringify(out);` (return the data, do not try to write a file from the page).
-2. Hand that JSON string to `write_file` (Hermes file tool) to land it at `/tmp/<page>.json`.
-3. Then `terminal` → `python3 product_db.py insert --json-file ...`.
-
-Also note: `execute_code` may be **blocked** (it is refused under cron-trusted profiles with a `BLOCKED: execute_code runs arbitrary local Python` message). Don't route the insert through `execute_code` — call the `product_db.py` script directly via `terminal`. And `product_db.py insert` only accepts `--db / --json / --json-file / --platform` — there is **no `--search-query` flag** on insert (passing it errors with `unrecognized arguments`); the `search_query` column is populated by `create`/`discover`, not by insert.
+Don't add `agent-browser wait --load networkidle` before extracting. On an Amazon.co.jp product page it ran until its 25-second timeout, although every field the extractors read was already in the page when `open` returned.
 
 ## Step 3: Cache & Filter
 
@@ -229,7 +216,7 @@ Never construct DB filenames in shell commands — always use the `create` comma
 
 ### Within a Conversation
 
-Always reuse the same DB. Multiple product categories can coexist (tracked by `search_query` column).
+Always reuse the same DB. Multiple product categories can coexist (tracked by `search_query` column); `query --search-query "<query>"` filters to one of them.
 
 ### Self-Cleanup
 
@@ -242,8 +229,10 @@ python3 /path/to/smart-shopper/scripts/product_db.py create --topic "garden tabl
 python3 /path/to/smart-shopper/scripts/product_db.py insert --db <DB_PATH> --json-file /tmp/products.json --platform amazon.co.jp
 python3 /path/to/smart-shopper/scripts/product_db.py query --db <DB_PATH> --min-rating 4.2 --max-price 100000
 python3 /path/to/smart-shopper/scripts/product_db.py update-detail --db <DB_PATH> --product-id "B09T97Z57Y" --page-text-file /tmp/page.txt --specs '{"weight": "16.74kg", ...}'
+python3 /path/to/smart-shopper/scripts/product_db.py update-detail --db <DB_PATH> --product-id "B09T97Z57Y" --extract-file /path/to/B09T97Z57Y.json
 python3 /path/to/smart-shopper/scripts/product_db.py update-detail --db <DB_PATH> --product-id "B09T97Z57Y" --verified
 python3 /path/to/smart-shopper/scripts/product_db.py query --db <DB_PATH> --spec-filter "table_weight_kg>=12" --spec-match "material=wood"
+python3 /path/to/smart-shopper/scripts/product_db.py query --db <DB_PATH> --search-query "ガーデンテーブル セット" --min-rating 4.2
 ```
 
 **Schema:**
@@ -276,6 +265,13 @@ CREATE TABLE product_pages (          -- separate table to keep products lean
     PRIMARY KEY (platform, product_id)
 );
 
+CREATE TABLE product_queries (        -- every query that found a product
+    platform TEXT NOT NULL,
+    product_id TEXT NOT NULL,
+    search_query TEXT NOT NULL,
+    PRIMARY KEY (platform, product_id, search_query)
+);
+
 CREATE TABLE _meta (key TEXT PRIMARY KEY, value TEXT);
 ```
 
@@ -284,7 +280,7 @@ CREATE TABLE _meta (key TEXT PRIMARY KEY, value TEXT);
 - `price_raw` preserves the original display text; `price` is the parsed numeric value for SQL comparison.
 - `search_rank` captures result position — a free quality signal.
 - `specs_json` stores extracted specifications as a JSON object (e.g., `{"table_weight_kg": 16.74, "chair_weight_kg": 7.64, "material": "PS wood"}`).
-- `UNIQUE(platform, product_id)` prevents duplicates when searches overlap.
+- `UNIQUE(platform, product_id)` prevents duplicates when searches overlap. `products.search_query` keeps the first query that found a product; `product_queries` records all of them, and `query --search-query` checks both.
 - `verified` flag tracks which products have been individually checked.
 
 ### Immediate Filtering
@@ -299,9 +295,9 @@ WHERE rating >= 4.2          -- replace with user's threshold
 ORDER BY rating DESC, review_count DESC;
 ```
 
-**Default minimum review count is 10** unless the user specifies otherwise.
+**Default minimum review count is 10** unless the user specifies otherwise. Products with fewer than 10 reviews have unreliable ratings and waste page visits.
 
-Respect strict wording: "大于 / more than 4.2" excludes exactly 4.2. Query inclusively (`>=`) so the boundary items stay in hand, then report exact-boundary products separately as the first relaxation option instead of mixing them into the qualifying list. Products with fewer than 10 reviews have unreliable ratings and waste page visits.
+Respect strict wording: "大于 / more than 4.2" excludes exactly 4.2. Query inclusively (`>=`) so the boundary items stay in hand, then report exact-boundary products separately as the first relaxation option instead of mixing them into the qualifying list.
 
 This produces the **candidate list** — only these products proceed to Step 4 (page visits + detailed verification). The remaining products stay in the DB for potential re-query if the user relaxes criteria later, but their pages are never visited.
 
@@ -311,9 +307,9 @@ If insufficient products match, tell the user how many matched and suggest crite
 
 **More than 20 candidates → ask the user before visiting any page.** Report the candidate count and offer two choices:
 1. **Change the filter** — show how many candidates tighter thresholds would leave (run the counts in SQL on the cached DB), e.g., "61 candidates. ≥4.4★ → 23, ≤¥50,000 → 18, ≥100 reviews → 15."
-2. **Investigate all** — visit every candidate's page (~10-15 seconds each, so 61 candidates ≈ 10-15 minutes).
+2. **Investigate all** — check every candidate's page. On Amazon.co.jp the fetch script in Step 4 handles about 60 pages a minute; browser visits take about 5 seconds each (61 candidates ≈ 5 minutes).
 
-Wait for the answer. Do not pick a subset yourself — not the first few by Candidate ordering, not the top-rated few, not one per brand. If the changed filter still leaves more than 20, ask again. Skip the question only when the user has already explicitly asked to investigate all candidates.
+Wait for the answer. Every product that passes the user's thresholds is in scope. Do not pick a subset yourself — not the first few by Candidate ordering, not the top-rated few, not one per brand, not the famous brands or the largest review counts (the omitted items can include the category's best seller). If the changed filter still leaves more than 20, ask again. Skip the question only when the user has already explicitly asked to investigate all candidates.
 
 ## Step 4: Detailed Verification
 
@@ -328,7 +324,7 @@ Example flow:
 
 ### Page Extraction Strategy
 
-Visiting product pages is the biggest time bottleneck (~10-15 seconds per page). Two approaches available — choose based on candidate count and environment stability.
+Visiting product pages is the biggest time bottleneck (about 5 seconds per page in the browser; on Amazon.co.jp the fetch script below is much faster). Two approaches available — choose based on candidate count and environment stability.
 
 #### Default: Sequential Extraction with Smart Ordering (Recommended)
 
@@ -355,14 +351,21 @@ ORDER BY price DESC, rating DESC;
 ```
 This makes the workflow resumable after network interruptions — just re-run and it picks up where it left off.
 
-**Faster path for Amazon.co.jp:** plain `curl -L --compressed` with a desktop Chrome UA and `Accept-Language: ja-JP` returns the full product page with HTTP 200. Fetch 30+ pages in about 1 minute with `xargs -P 6`, then parse with bs4/lxml (installed in `~/.venv-stock`, not in system python): `#productTitle`, `#landingImage[data-old-hires]`, `#acrPopover[title]`, `#acrCustomerReviewText`, `#feature-bullets li`, plus the spec tables. Without this, browser cost tempts you to sample the candidate set, so use it whenever the candidate list exceeds about 8. The search extractor stores no image URL; take images from the product page.
+**Fast path for Amazon.co.jp product pages (no browser):** `scripts/amazon_fetch_pages.py` fetches product pages over plain HTTP and extracts the same fields as `amazon_product_page_extract.js`, using only the Python standard library. Pipe the candidate list into it:
 
-**Batch size:** each product page costs roughly 25–30 s (open + networkidle + scroll + eval), and a foreground terminal call is time-capped. Visit at most ~8 pages per call, wrap the loop in `timeout`, and write each page's JSON/text to disk as it finishes so a timed-out batch loses nothing; list what landed on disk before re-running the rest.
+```bash
+python3 /path/to/smart-shopper/scripts/product_db.py query --db <DB_PATH> --min-rating 4.2 --max-price 100000 --min-reviews 10 --limit 500 \
+  | python3 /path/to/smart-shopper/scripts/amazon_fetch_pages.py --out-dir "$(mktemp -d)" --db <DB_PATH>
+```
 
-**For each candidate:**
-1. `agent-browser open {url}` → wait for page load
+It handles about 60 pages a minute. For each product it writes `<id>.json` (the fields) and `<id>.txt` (the page text) into the output directory, stores the page text in `product_pages`, and prints a summary. It stops at the first CAPTCHA, robot check or unusual redirect, exits with code 2 and lists the IDs it did not fetch; then follow the CAPTCHA rule in Error Recovery. From each `<id>.json`, read only the fields the criteria need (usually `specs` and `bullets`; the image lists matter only for 4c-bis) and store the values with `update-detail --specs`. Use it whenever the candidate list exceeds about 8, so the cost of browser visits never tempts you to sample the candidates. Use the browser for pages it reports as `unparsed`, and for checks that need scrolling, clicking or screenshots (review language, visual checks).
+
+**Batch size (browser visits):** a page costs about 5 seconds (open, scroll, extract), and a foreground command is time-capped. Size each call to that limit (20 pages take about 100 seconds), write each page's output to disk as it finishes so a timed-out batch loses nothing, and list what landed on disk before re-running the rest.
+
+**For each candidate (browser):**
+1. `agent-browser open {url}` (it returns once the page has loaded)
 2. Scroll to load dynamic content (reviews, spec tables often lazy-load)
-3. Extract full page text → write to temp file → `python3 {script} update-detail --db {db} --product-id {id} --page-text-file /tmp/{id}_page.txt`
+3. Extract full page text → write to temp file → `python3 {script} update-detail --db {db} --product-id {id} --page-text-file {tmpdir}/{id}_page.txt`. On Amazon.co.jp, run `scripts/amazon_product_page_extract.js` into `{tmpdir}/{id}.json` instead and store it with `update-detail --extract-file {tmpdir}/{id}.json`, which saves `body` as the page text and prints the other fields. (`{tmpdir}` is a directory made once with `mktemp -d`; write its literal path into each command, because shell variables don't carry over between commands.)
 4. Extract specs from the structured spec table (not marketing copy) → `python3 {script} update-detail --db {db} --product-id {id} --specs '{...}'`
 5. **Early termination check**: if the user requested N qualifying products and you've found N products that pass ALL spec criteria so far, you may stop visiting remaining candidates and proceed to Step 4a. Skip this check when the user wants all candidates investigated (chosen at the Step 3 question or asked for up front) — then visit every candidate.
 
@@ -500,12 +503,10 @@ A hard-won lesson: for many product categories, the **most important numeric spe
 **Failure mode to avoid:** scanning `document.body.innerText` + the spec table, finding nothing, and telling the user "this parameter is not published / doesn't exist." That is **confidently-wrong** — the user can see the number in the image and will (rightly) push back. When a user asks for a spec that text-scan can't find, the next step is to READ THE IMAGES before concluding it's absent.
 
 **Procedure when a requested spec isn't in text/spec-table:**
-1. Collect A+ / description image URLs from the page. They live in `#aplus img, .aplus-v2 img, #aplus_feature_div img, #productDescription img` plus the main gallery (`#altImages img`, `[data-a-dynamic-image]`). Read `data-old-hires` / `data-src` / `currentSrc`, and parse `data-a-dynamic-image` JSON keys for hi-res URLs.
+1. Collect A+ / description image URLs. On Amazon.co.jp both product-page scripts return them (`main_image`, `gallery_images`, `aplus_images`). Elsewhere they live in `#aplus img, .aplus-v2 img, #aplus_feature_div img, #productDescription img` plus the main gallery (`#altImages img`, `[data-a-dynamic-image]`): read `data-old-hires` / `data-src` / `currentSrc`, and parse `data-a-dynamic-image` JSON keys for hi-res URLs.
 2. **Amazon image-URL gotcha:** the bare base URL (e.g. `https://m.media-amazon.com/images/I/71G4Au+gCtL`) often returns **HTTP 400** to a vision fetch. Append a size suffix to make it loadable: `...71G4Au+gCtL._AC_SL1500_.jpg`. Strip any existing `._...` segment first, then add `._AC_SL1500_.jpg`.
 3. The biggest images (filename prefixes `61/71/81…`) are the A+ infographics where spec tables/percentages are printed. Feed those to the vision tool and ask it to read every number+label (透過率, 遮光率, UV, IR, 温度, etc.). Implementation specs are often a per-color / per-variant comparison table (e.g. ブラックシルバー 可視光15% / シルバー 20% / グレー 25%).
-4. Only after reading the images may you state a spec is "not published."
-
-**If `browser_get_images` returns `[]` and `document.querySelectorAll('img').length === 0`,** the page has been reset to `about:blank` (see the about:blank pitfall below) — re-navigate and re-extract URLs immediately after load, before scrolling.
+4. Only after reading the images may you state a spec is "not published." Report a number read from an image as the manufacturer's stated value. When it decides pass/fail, it is still marketing copy missing from the spec table, so cross-verify it as 4b requires.
 
 ### 4d: Criterion Verification Checklist
 
@@ -535,47 +536,38 @@ Present the most relevant fields for this product search. Every product MUST car
 - Product name (abbreviated if long)
 - Price
 - Rating + review count
-- **A clickable link for EVERY product.** The `url` field is already in the DB; you queried it. On chat platforms deliver it as a **bare URL on its own line** (see the Telegram note below) — NOT as a `[text](url)` cell, which doesn't render clickable there. Including the link is not optional.
+- A clickable link (the `url` column)
 - Key criteria columns (whatever the user specified — weight, material, size, etc.)
 
-#### ⛔ The link is a hard requirement, not a style choice (observed failure: 2026-06-19, links dropped two answers in a row)
+**Every product you show carries its link, next to the product.** That includes shortlists, quick summaries and recommendation picks. A link listed in a separate block or an earlier message doesn't count, and neither does holding links back until the user asks. When space is short, abbreviate the name, never the link. If a product genuinely has no URL, write `—` and say why.
 
-LLMs converge toward compact tables and silently drop the "boring" link. Block that explicitly. A recommendation **without a per-product clickable link is a defective deliverable**, regardless of:
-- …the links being listed somewhere else (a separate block, an earlier message) — the user wants them WITH the product, where the decision happens;
-- …the table/list being "just a quick summary" or "the shortlist" — shortlists are exactly what the user clicks through;
-- …planning to "add them if the user asks" — the skill already asked, on the user's behalf, permanently;
-- …running low on space/tokens — abbreviate the name, never drop the link.
-
-#### ⚠️ Telegram (and many chat clients): bare URLs only — markdown links inside table cells DON'T render clickable
-
-Real failure, same session, 2026-06-19: links were put into a table column as `[链接](url)`. Telegram rendered the table but the **inline markdown links inside cells were not clickable** — user reported "表格里边的链接点不了". Markdown link syntax (`[text](url)`) inside a table cell is unreliable on Telegram/WhatsApp/Discord; the cell often shows plain text with no tap target.
-
-**Fix: when delivering to a chat platform, put each product as a short block with the link as a BARE URL on its own line** (chat clients auto-linkify bare URLs), not as a markdown-link table cell. Example shape:
+**On chat platforms (Telegram, WhatsApp, Discord), use bare URLs, not Markdown links in table cells.** A `[text](url)` inside a table cell often shows as plain text with nothing to tap. Give each product a short block with the bare URL on its own line (chat clients turn bare URLs into links):
 
 ```
 **1. Product name** — 4.3★ / 281 reviews / ¥4,430 — key spec
 https://www.amazon.co.jp/dp/XXXXXXXXXX
 ```
 
-A real Markdown table is fine for name/price/rating/spec columns (those degrade to readable bullets), but the **link must be a bare URL outside the table** so it stays tappable. If you genuinely have no URL for a product, write `—` and say why — never silently omit it.
+A Markdown table is still fine for name/price/rating/spec columns there, as long as the links sit outside it as bare URLs.
 
-After the table, add a **brief recommendation section** organized by use case:
+After the product list, add a **brief recommendation section** organized by use case. Each pick repeats its link:
 
 ```markdown
 | Priority | Pick | Reason |
 |---|---|---|
 | Value | Product A | Cheapest that meets all criteria |
 | Quality | Product C | Highest rating + most reviews |
+
+Product A: https://www.amazon.co.jp/dp/XXXXXXXXXX
+Product C: https://www.amazon.co.jp/dp/YYYYYYYYYY
 ```
 
-### ⛔ Pre-delivery audit (run mentally before sending — do not skip)
+### Pre-delivery audit
 
-Default state of the answer is "not ready." Positively confirm each, or fix it:
-1. **Every product has a clickable link** — on chat platforms a BARE URL on its own line (not a `[text](url)` table cell, which doesn't tap on Telegram). Scan top to bottom; if any product lacks a tappable link, the answer is not ready to send.
-2. Each product shown actually passes the user's stated filters (rating / reviews / price / sub-type).
+Treat the answer as not ready until each check passes:
+1. Every product shown has a clickable link (on chat platforms, a bare URL on its own line).
+2. Every product in the recommended list passes the user's stated filters (rating / reviews / price / sub-type). Anything else you show (boundary items, relaxation options, the other side of a tradeoff) names the criterion it fails or couldn't confirm.
 3. Off-target sub-types (Category Traps) are separated out, not silently mixed into the recommendation.
-
-This audit is the Single-Turn "Output Audit Before Delivery" rule: the deliverable is the product list, and a missing or non-clickable link is the recurring way it ships broken.
 
 ## Step 6: Iterate
 
@@ -592,20 +584,14 @@ This is the key advantage of the caching design: what previously required 20 min
 
 ### Common follow-ups after a shortlist
 
-- **"哪个好看 / which looks best":** looks are subjective, so show the images instead of describing them. Get each main image from the product page (`#landingImage` → `data-old-hires`, or the first key of the `data-a-dynamic-image` JSON) and curl it. Build a numbered HTML grid and screenshot it with `google-chrome --headless=new --no-sandbox --hide-scrollbars --window-size=W,H --screenshot=out.png file://grid.html`, because PIL is not installed on this host. Make H tall enough for every row; a too-short window cut off the last row's titles. Check the PNG with vision before sending it with MEDIA. Then group the products by style (retro, minimal, rugged, cute) and give one opinion.
-- **"一次充电用多久 / runtime":** lead with the runtime at the highest brightness. The headline "最长 XX 時間" is almost always measured at the lowest mode. Mark every number as a manufacturer claim, write "未标" when the page gives no figure, and label any estimate you derive from mAh and lumens as your own. Finish with a practical takeaway, for example which models last a 4–5 h evening on medium and which last it on max.
+- **"哪个好看 / which looks best":** looks are subjective, so show the images instead of describing them. Take each product's `main_image` from the product-page script output and write a numbered HTML grid (image plus number and short name per cell) to `grid.html` in a fresh `mktemp -d` directory. Render it with agent-browser: `agent-browser set viewport 1200 900`, then `agent-browser open "file://<dir>/grid.html"`, then `agent-browser wait --fn "Array.from(document.images).every(i => i.complete && i.naturalWidth > 0)"`, then `agent-browser screenshot --full <dir>/grid.png`. Look at the PNG before sending it to check that every row and caption is visible. Then group the products by style (retro, minimal, rugged, cute) and give one opinion.
+- **"一次充电用多久 / runtime":** lead with the runtime at the highest brightness. The headline "最长 XX 時間" is almost always measured at the lowest mode. Mark every number as a manufacturer claim, say so in the user's language when the page gives no figure, and label any estimate you derive from mAh and lumens as your own. Finish with a practical takeaway, for example which models last a 4–5 h evening on medium and which last it on max.
 - **User sends a product link that isn't in your answer:** resolve the short link with `curl -s -o /dev/null -w "%{redirect_url}" <amzn.asia link>` to get the ASIN, then check the DB for it first. If it is already cached and passes the filter, say plainly that you dropped it and why, verify its page, and give the user the number still unchecked.
 
 ## Important Principles
 
 ### Honesty Over Quantity
 If the user asks for 10 products but only 6 genuinely meet all criteria, say so. Don't pad the list with products that don't qualify. Suggest criteria relaxation instead.
-
-### High-end GPU price and build research
-
-Verify live retailer availability before using search-snippet prices: old GPU pages can retain low prices while sold out, and campaign pages can end early after their allocation sells out. Report unavailable or ended prices separately from purchasable offers.
-
-Keep GPU-only arithmetic distinct from complete-system quotes. Label non-GPU build costs as estimates, check multi-unit purchase restrictions, and distinguish workstation active-cooled cards from passive PCIe accelerators and SXM modules that require specialized hosts. Combined VRAM is not an automatically unified pool and memory bandwidth is not proof of workload speed.
 
 ### Don't Trust Text — Verify Claims
 Product titles and bullet points often exaggerate. "180° fully flat" might be 150°. "Lightweight" might be 11kg. When a specific claim matters to the user, verify it on the actual product page's structured specification table, not from marketing copy or search results summaries.
@@ -624,16 +610,19 @@ A keyword search often returns several *physically distinct* product types under
 
 A worked example (Amazon.co.jp window privacy film: true one-way *mirror* film vs. frosted/stained types that block both directions, where the frosted type rates higher precisely because it lacks the mirror type's nighttime-reversal failure mode) is in `references/one-way-mirror-film.md`. Treat it as the template for any "looks like one category, is actually three" search: name the sub-types, explain why ratings skew, filter before ranking, and surface the physics-driven caveat in the final answer.
 
-A third worked example (Amazon.co.jp weed control: a casual "撒在地里防野草的东西" splits into THREE classes — 固まる砂/防草砂 (hardening sand) vs 防草シート/砂利 (barrier sheet/gravel) vs 除草剤粒剤 (granular herbicide = the "药/medicine"), and within herbicide again into 土壌処理型 vs 茎葉処理型 vs 芝生用 vs 水稲用) is in `references/weed-control-category-traps.md`. The disambiguation hinged on the user saying "要药撒到地里…不是防草层那种" → granular herbicide. Always ask whether plants nearby must be preserved before recommending a 土壌処理型 (long-residual) product — it suppresses wanted plants too.
-
 A second worked example (Amazon.co.jp サーキュレーター / circulator fans: marketed "360°首振り" splits into **true horizontal 360° head rotation** vs. **fake "3D送風" = 上下100°+左右90°** that never rotates a full circle) is in `references/marketing-spec-traps.md`. Same drill: the keyword filters in lots of products whose titles all say "360°" but whose mechanism is different — read the spec table / feature bullets / A+ images to classify *real* vs *marketing* 360° before ranking. The same file covers "USB-C" speakers and audio gear, where single-cable USB-audio models and USB-power-plus-3.5mm models both print "USB-C" in the title.
 
+A third worked example (Amazon.co.jp weed control: a casual "撒在地里防野草的东西" splits into THREE classes — 固まる砂/防草砂 (hardening sand) vs 防草シート/砂利 (barrier sheet/gravel) vs 除草剤粒剤 (granular herbicide = the "药/medicine"), and within herbicide again into 土壌処理型 vs 茎葉処理型 vs 芝生用 vs 水稲用) is in `references/weed-control-category-traps.md`, with the wording cues that tell the classes apart. Always ask whether plants nearby must be preserved before recommending a 土壌処理型 (long-residual) product — it suppresses wanted plants too.
+
 ### Mutually-Exclusive Criteria — Surface The Tradeoff, Don't Pick Silently
-Sometimes two of the user's stated requirements **cannot physically coexist in one product**, and the catalog enforces it as a clean split. Classic case seen this session: a circulator that is BOTH "底盘小 (small base)" AND "高さ調節可能 (telescoping height)" barely exists — telescoping floor models need a wide (~31cm) base for stability, while small-base (~21cm) models are fixed-height tabletop units. When you detect this:
+Sometimes two of the user's stated requirements **cannot physically coexist in one product**, and the catalog enforces it as a clean split. Example: a circulator that is BOTH "底盘小 (small base)" AND "高さ調節可能 (telescoping height)" barely exists — telescoping floor models need a wide (~31cm) base for stability, while small-base (~21cm) models are fixed-height tabletop units. When you detect this:
 1. Name the tradeoff explicitly to the user (don't quietly optimize one side and drop the other).
 2. Present a best pick for EACH side of the tradeoff (e.g. "if height-adjust matters most → X; if small base matters most → Y"), with the disqualifying attribute called out.
 3. Ask which axis is the priority before finalizing.
+
 This is far more useful than returning one product that silently fails a criterion the user explicitly asked for.
+
+### Show Your Work on Filtering
 When presenting results, briefly note how many total products were found, how many passed each filter, and how many survived to the final list. This helps the user understand the market and make informed decisions about relaxing criteria.
 
 Example:
@@ -641,10 +630,15 @@ Example:
 > After filtering (★≥4.2, ¥≤100,000, reviews≥10): 31 remain.
 > After weight verification (table≥12kg, chair≥7kg): 5 qualify.
 
+### Category-Specific Notes
+Read the file when the request falls in that category:
+- High-end GPUs (live prices, multi-GPU build quotes): `references/gpu-price-research.md`
+- Cables and chargers (USB-IF / Thunderbolt / MFi / PSE certification, construction and stiffness): `references/cable-certification.md`
+
 ### Platform-Specific Tips
 
 **Amazon.co.jp / .com:**
-- Extract ASINs from `[data-asin]` attributes; iterate `div[data-asin][data-component-type="s-search-result"]` for organic results
+- Extract ASINs from `[data-asin]` attributes; iterate `div[data-asin][data-component-type="s-search-result"]` for search results (the extractor leaves `search_rank` empty for sponsored rows)
 - Product URL pattern: `https://www.amazon.co.jp/dp/{ASIN}`
 - Rating and price need JavaScript extraction from specific selectors
 - "Item Weight" on Amazon is unreliable — could be shipping weight, single component, or total
@@ -657,25 +651,11 @@ Example:
 
 **Verified product-page selectors:** title `#productTitle`; rating `#acrPopover` `title` attr (`"5つ星のうち4.2"`); review count `#acrCustomerReviewText`; feature bullets `#feature-bullets li span.a-list-item`. The feature bullets are where directionality/mechanism claims live — read them, not just the title.
 
-**Review-count extraction needs a multi-fallback chain — a single selector silently returns all-null.** Amazon serves several search-results layouts (A/B variants, JA vs EN, ad vs organic rows), and the element holding the review count moves between them. A first-attempt extraction this session used one selector (`span.a-size-base.s-underline-text`) and got `reviews: null` for **all 48 products** — wasting a full extraction round. Don't trust one selector; try several per product and take the first hit:
-```javascript
-// per result element `it`, in order — first match wins
-let reviews = null;
-// 1. aria-label on the rating-count link/span (most reliable when present)
-let c = it.querySelector('[aria-label*="件の評価"],[aria-label*="個の評価"],[aria-label*="レーティング"],[aria-label*="ratings"],[aria-label*="reviews"]');
-if (c) { const m=(c.getAttribute('aria-label')||'').replace(/[,，]/g,'').match(/([0-9]+)/); if(m) reviews=+m[1]; }
-// 2. the underline-text count link
-if (reviews===null){ const u=it.querySelector('a span.s-underline-text, span.s-underline-text'); if(u){const m=u.textContent.replace(/[,，]/g,'').match(/([0-9]+)/); if(m) reviews=+m[1];} }
-// 3. any link whose aria-label is a bare number (the count link)
-if (reviews===null){ for(const l of it.querySelectorAll('a[aria-label]')){ const lab=l.getAttribute('aria-label').replace(/[,，]/g,''); const m=lab.match(/^([0-9]+)$/)||lab.match(/([0-9]+)\s*(ratings|件)/); if(m){reviews=+m[1];break;} } }
-```
-**Sanity-check the yield before proceeding:** after extraction, log how many products got a non-null `reviews` (this session: 38 of 48 — the 10 nulls were genuinely review-less new listings, not a selector miss). If the non-null count is near zero, the selector chain missed the current layout — inspect one result element's HTML and add the layout's selector, don't push forward with an all-null filter.
+**Review-count extraction needs a multi-fallback chain — a single selector silently returns all-null.** Amazon serves several search-results layouts (A/B variants, JA vs EN, ad vs organic rows), and the element holding the review count moves between them; one selector alone (`span.a-size-base.s-underline-text`) once returned `reviews: null` for all 48 products on a page. `scripts/amazon_search_extract.js` tries an aria-label match, then the underline-text count link, then a bare-number aria-label, and takes the first hit. When a new layout appears, add its selector there.
 
-**Certification claims (USB-IF, Intel/Thunderbolt, MFi, PSE, etc.):** only look for the claim in `#productTitle`, `#feature-bullets` and the spec table. Don't scan the whole page's `innerText`, because the sponsored carousels on almost every cable page include Amazon Basics' "USB-IF認証取得" and IVANKY's "インテル認証". A body-wide scan will wrongly mark most products as certified. A certification that a seller typed into the spec table, with no TID, is still unverified. The real proof is a TID (Test ID) that shows up in usb.org/products for USB-IF, or in the Intel/Thunderbolt certified list for Thunderbolt. If the listing gives no TID, ask the seller for one before calling the product certified.
+**Sanity-check the yield before proceeding:** after extraction, check how many products got a non-null `review_count`. A healthy page looks like 38 of 48, where the nulls are new listings without reviews. If the non-null count is near zero, the selector chain missed the current layout — inspect one result element's HTML and add the layout's selector, don't push forward with an all-null filter.
 
-**Cable construction and materials:** before saying a material "isn't published", check the ChargerLAB / 充电头网 teardowns. They cut cables open and list each layer, the wire count and the diameter. Their article pages load in agent-browser, while the zai reader and plain curl fail on them. To find the article URL, use the YouTube search results page, which gives the exact title, then slugify that title. Apple's woven USB-C charge cables have a braided fiber outer layer, a TPE jacket, a shielding net, tensile fibers and 6 conductors. They are 3.3 mm thick for 60W 1m (A2795) and 4.6 mm for 240W 2m (A2794). Their softness comes from having few conductors. Any cable that can drive a display carries extra shielded high-speed pairs, so it will be stiffer.
-
-Thunderbolt certification: the official list is `https://www.thunderbolttechnology.net/products?tid=3&field_prod_tb_version_value_many_to_one=tbv4` (`tid=3` means Cable; use `tbv5` for Thunderbolt 5). Plain curl can fetch it. The `field_company_nid` dropdown on that page lists every certified brand, so a brand that isn't in the dropdown has no certified cable. Seen here: CIO, MOTTERU, LINKUP, BENFEI and Alvin's are not in it. Anker, Belkin, CalDigit, Cable Matters, Satechi, OWC, UGREEN and ELECOM are. On Amazon, "Thunderbolt 4対応/互換" in a listing does not mean the cable is certified.
+**Claims about this product** (certifications, mechanism, materials): read them only from `#productTitle`, `#feature-bullets` and the spec table. The rest of the page text includes sponsored carousels for other products, for example other brands' "USB-IF認証取得" on almost every cable page, so a page-wide scan attributes their claims to this product.
 
 **Rakuten:**
 - Product IDs from URL patterns
@@ -706,6 +686,3 @@ Shopping platforms aggressively block automation. If you encounter a CAPTCHA, ac
 ### agent-browser Failures
 - If `agent-browser` crashes or times out, try once more. If it fails again, close the browser (`agent-browser close`) and inform the user.
 - If the platform page doesn't load (timeout, network error), skip that product and move to the next candidate. Don't block the entire search on one product.
-
-### Hermes browser session resets to about:blank
-When driving with **Hermes built-in browser tools**, the page sometimes silently resets to `about:blank` between calls (signals: `browser_console` returns `[]` for a selector that just worked, `browser_get_images` returns empty, `document.body.innerText.length === 0`, or `location.href === "about:blank"`). This is a session-lifecycle quirk, not a bad selector. Recovery: re-`browser_navigate` to the URL, then do your extraction (image URLs, console eval, vision screenshot) **immediately after load**, before any extra `browser_scroll` — scrolling can trigger the reset. If a vision screenshot comes back blank/white, check `location.href` first; a blank screenshot usually means about:blank, not a missing image.

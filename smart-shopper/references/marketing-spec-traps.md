@@ -20,7 +20,7 @@ titles nearly all say "360°首振り" — but there are TWO distinct mechanisms
 
 The cheaper/high-volume models overwhelmingly use the second (3D) meaning while
 still printing "360°" in the title. The genuinely-rotating models cluster in a few
-brands (this session: **zonzon** had two qualifying SKUs).
+brands (for example, **zonzon** had two qualifying SKUs).
 
 **How to tell them apart (don't trust the title):**
 - Read the **feature bullets** and the **spec table**. Real 360° says things like
@@ -33,7 +33,7 @@ brands (this session: **zonzon** had two qualifying SKUs).
 (telescoping height)". Telescoping floor units need a wide base (~31×31 cm) to stay
 upright; small-base units (~21×22 cm) are fixed-height tabletop. You usually cannot
 get both — surface the tradeoff and give one pick per side (see SKILL.md
-"Mutually-Exclusive Criteria"). Verified this session:
+"Mutually-Exclusive Criteria"). Verified examples:
 - zonzon B0GMPVMGYF / B0GMPWS8PX — matte white, telescoping 43–100 cm, true 360°, base ~31.8 cm (NOT small)
 - Dolado B0GT4CLCF9 — white, true 360°, small base 21.6×22.5 cm, but FIXED 31.6 cm height (its "高さ調節" is only up/down tilt)
 
@@ -70,7 +70,6 @@ listings state their Bluetooth is SBC only, which adds visible lip-sync delay.
 5. In the final answer, explicitly call out the look-alikes you excluded and why
    ("X has 6653 reviews but is only left-right oscillation, not true 360°").
 
-Other likely instances of this trap: "USB-C" audio gear (USB audio vs USB power + 3.5mm),
-"noise-cancelling" (ANC vs passive),
+Other likely instances of this trap: "noise-cancelling" (ANC vs passive),
 "waterproof" (IPX rating vs "water-resistant"), "fast charge" (PD/QC vs 5W),
 "4K" (native vs upscaled), "leather" (genuine vs PU/合皮), "blackout" (遮光1級 vs 2級/3級).
