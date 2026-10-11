@@ -42,7 +42,7 @@ User request
 [2] Search platform via agent-browser → extract product list
     ↓
 [3] Cache basic info in SQLite → immediately filter by rating/price/review_count → candidate list
-    ↓
+    ↓  more than 20 candidates? → ask user: change the filter, or investigate all
 [4] Verify candidates only (parallel batch — visit product pages, extract specs, store page_text)
     ↓
 [5] Present results (table + recommendation)
@@ -269,6 +269,12 @@ Note: criteria that can't be expressed in SQL (e.g., "Japanese reviews exist", "
 
 If insufficient products match, tell the user how many matched and suggest criteria relaxation. Show the distribution: "Found 3 products at ≥4.2★. Relaxing to ≥3.9★ would add 4 more."
 
+**More than 20 candidates → ask the user before visiting any page.** Report the candidate count and offer two choices:
+1. **Change the filter** — show how many candidates tighter thresholds would leave (run the counts in SQL on the cached DB), e.g., "61 candidates. ≥4.4★ → 23, ≤¥50,000 → 18, ≥100 reviews → 15."
+2. **Investigate all** — visit every candidate's page (~10-15 seconds each, so 61 candidates ≈ 10-15 minutes).
+
+Wait for the answer. Do not pick a subset yourself — not the first few by Candidate ordering, not the top-rated few, not one per brand. If the changed filter still leaves more than 20, ask again. Skip the question only when the user has already explicitly asked to investigate all candidates.
+
 ## Step 4: Detailed Verification
 
 Step 3 filtered using basic search-result data (rating, price, review count). But many user criteria — weight, material, dimensions, review language — are only available on the product page. Step 4 has three phases:
@@ -278,7 +284,7 @@ Step 3 filtered using basic search-result data (rating, price, review count). Bu
 3. **Verify**: Cross-verify and checklist only the final few products
 
 Example flow:
-> 61 candidates (from Step 3) → batch page visits → extract specs → detailed filter (weight≥12kg, chair≥7kg) → **5 finalists** → cross-verify + checklist
+> 61 candidates (from Step 3) → more than 20, user chose "Investigate all" → batch page visits → extract specs → detailed filter (weight≥12kg, chair≥7kg) → **5 finalists** → cross-verify + checklist
 
 ### Page Extraction Strategy
 
@@ -297,6 +303,8 @@ Visit candidate pages **sequentially in the parent agent**. This is simpler, mor
 2. Higher price (correlates with heavier construction)
 3. Higher review count (more data available for verification)
 
+This ordering only sets which page to open first; it is not a cutoff. Visit every candidate in the list — stop early only via the early termination check (step 5 below) or an Error Recovery case.
+
 **Resume check** — before visiting any pages, skip products already extracted:
 ```sql
 SELECT product_id, url FROM products
@@ -312,7 +320,7 @@ This makes the workflow resumable after network interruptions — just re-run an
 2. Scroll to load dynamic content (reviews, spec tables often lazy-load)
 3. Extract full page text → write to temp file → `python3 {script} update-detail --db {db} --product-id {id} --page-text-file /tmp/{id}_page.txt`
 4. Extract specs from the structured spec table (not marketing copy) → `python3 {script} update-detail --db {db} --product-id {id} --specs '{...}'`
-5. **Early termination check**: if the user requested N qualifying products and you've found N products that pass ALL spec criteria so far, you may stop visiting remaining candidates and proceed to Step 4a.
+5. **Early termination check**: if the user requested N qualifying products and you've found N products that pass ALL spec criteria so far, you may stop visiting remaining candidates and proceed to Step 4a. Skip this check when the user wants all candidates investigated (chosen at the Step 3 question or asked for up front) — then visit every candidate.
 
 #### Alternative: Parallel Sub-Agent Extraction
 
@@ -487,7 +495,7 @@ When the user changes criteria:
 1. **First, query the existing DB** — instant results
 2. **Report what's available**: "Relaxing to ≥3.9★: found N additional products in cache"
 3. **If newly qualifying products lack page data**, distinguish two cases:
-   - **Never visited** (no row in `product_pages`): run Step 4 batch extraction for them
+   - **Never visited** (no row in `product_pages`): run Step 4 batch extraction for them — if more than 20, ask the user first, same as Step 3
    - **Visited but spec missing** (`product_pages` exists, `specs_json` is NULL): skip extraction, go directly to cross-verification (Step 4b)
 4. **Only re-search if the DB doesn't have enough data** (e.g., user wants a completely different product type)
 
